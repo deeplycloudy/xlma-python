@@ -32,6 +32,7 @@ There are many options, so we want a design that:
 - ipyvolume: originally written for volume rendering, but has grown to display points, etc. Browser/notebook based.
 - Bokeh/holoviews/geoviews: browser-based; Javascript and WebGL front end with Python backend. Works well with Binder.
 - Datashader might be useful as a method of data reduction prior to visualization even if we don't use Bokeh.
+- Yt - written by the astronomy community in Python … is it fast enough?
 
 ### GUI
 
