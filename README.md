@@ -41,6 +41,7 @@ There is no obvious choice here, either.
 - Jupyter notebooks
 - JupyterLab with custom plugin
 - PyQT
+- [Glue](https://github.com/glue-viz/glue/wiki/SciPy-2019-Tutorial-on-Multi-dimensional-Linked-Data-Exploration-with-Glue) - seems about 60% there out of the box?! 
 
 # Prior art
 
