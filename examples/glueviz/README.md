@@ -1,0 +1,1 @@
+Run `glue` from this directory and it will read config.py, which adds LMA file read support to `glueviz`.
