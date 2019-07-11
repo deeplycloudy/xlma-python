@@ -27,8 +27,8 @@ app = GlueApplication(dc)
 # image_viewer.state.layers[0].percentile = 99
 
 view_names = ('xy', 'xz', 'zy', 'tz')
-sizes = ((500, 500), (500, 200), (200, 500), (500, 200))
-posns = ((500, 0), (1000, 0), (500, 500), (1200, 0))
+sizes = ((500, 500), (500, 250), (250, 500), (500, 250))
+posns = ((0, 500), (0, 250), (500, 500), (0, 0))
 thevars = (('lon', 'lat'), ('lon', 'alt(m)'), ('alt(m)', 'lat'), ('time (UT sec of day)', 'alt(m)'))
 
 views = {}
@@ -48,8 +48,12 @@ for view, size, posn, axvars in zip(view_names, sizes, posns, thevars):
 # keep_in_sync(viewer1.state, 'x_min', viewer2.state, 'x_min')
 
 def link_x(view1, view2):
-    keep_in_sync(view1.state, 'x_min', view2.state, 'x_min')
-    keep_in_sync(view1.state, 'x_max', view2.state, 'x_max')
+    print(view1.state)
+    print(view2.state)
+    sync_x0 = keep_in_sync(view1.state, 'x_min', view2.state, 'x_min')
+    sync_x1 = keep_in_sync(view1.state, 'x_max', view2.state, 'x_max')
+    print(dir(sync_x0))
+    print(sync_x0.enabled)
 def link_y(view1, view2):
     keep_in_sync(view1.state, 'y_min', view2.state, 'y_min')
     keep_in_sync(view1.state, 'y_max', view2.state, 'y_max')
@@ -65,9 +69,11 @@ link_y(views['xy'], views['zy'])
 link_y(views['xz'], views['tz'])
 link_x_to_y(views['zy'], views['tz'])
 
+# Because of sync this updates all axes. Doesn't work with interactive zoom!?
+views['tz'].state.y_min = 0.0
+views['tz'].state.y_max = 20000.0
 
-    
-    
+
 # programmatically create a subset
 
 # def subset_from_axes_limits(subset):
