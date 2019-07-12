@@ -48,26 +48,29 @@ for view, size, posn, axvars in zip(view_names, sizes, posns, thevars):
 # keep_in_sync(viewer1.state, 'x_min', viewer2.state, 'x_min')
 
 def link_x(view1, view2):
-    print(view1.state)
-    print(view2.state)
     sync_x0 = keep_in_sync(view1.state, 'x_min', view2.state, 'x_min')
     sync_x1 = keep_in_sync(view1.state, 'x_max', view2.state, 'x_max')
-    print(dir(sync_x0))
-    print(sync_x0.enabled)
+    return sync_x0, sync_x1
 def link_y(view1, view2):
-    keep_in_sync(view1.state, 'y_min', view2.state, 'y_min')
-    keep_in_sync(view1.state, 'y_max', view2.state, 'y_max')
+    sync_y0 = keep_in_sync(view1.state, 'y_min', view2.state, 'y_min')
+    sync_y1 = keep_in_sync(view1.state, 'y_max', view2.state, 'y_max')
+    return sync_y0, sync_y1
 def link_x_to_y(view1, view2):
-    keep_in_sync(view1.state, 'x_min', view2.state, 'y_min')
-    keep_in_sync(view1.state, 'x_max', view2.state, 'y_max')
+    sync_xy0 = keep_in_sync(view1.state, 'x_min', view2.state, 'y_min')
+    sync_xy1 = keep_in_sync(view1.state, 'x_max', view2.state, 'y_max')
+    return sync_xy0, sync_xy1
 def link_y_to_x(view1, view2):
-    keep_in_sync(view1.state, 'y_min', view2.state, 'x_min')
-    keep_in_sync(view1.state, 'y_max', view2.state, 'x_max')
+    ync_yx0 = keep_in_sync(view1.state, 'y_min', view2.state, 'x_min')
+    ync_yx1 = keep_in_sync(view1.state, 'y_max', view2.state, 'x_max')
+    return sync_yx0, sync_yx1
 
-link_x(views['xy'], views['xz'])
-link_y(views['xy'], views['zy'])
-link_y(views['xz'], views['tz'])
-link_x_to_y(views['zy'], views['tz'])
+# To keep sync active, need to hold a reference to the link sync objects.
+# Probably should move this into a _pyxlma_state dict so we only add one thing
+# to the app.
+app._x_sync = link_x(views['xy'], views['xz'])
+app._y_sync = link_y(views['xy'], views['zy'])
+app._zt_sync = link_y(views['xz'], views['tz'])
+app._zy_sync = link_x_to_y(views['zy'], views['tz'])
 
 # Because of sync this updates all axes. Doesn't work with interactive zoom!?
 views['tz'].state.y_min = 0.0
