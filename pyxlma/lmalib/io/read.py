@@ -44,6 +44,10 @@ class lmafile:
                     # self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
                 # Find starting and ending rows for station information
+                if line.startswith(b'Coordinate center'):
+                    self.ctr_lat = line.decode().split()[3]
+                    self.ctr_lon = line.decode().split()[4]
+                    self.ctr_alt = line.decode().split()[5]
                 if line.startswith(b'Station information:'):
                     self.station_info_start = line_no
                 if line.startswith(b'Station data:'):
@@ -113,5 +117,5 @@ class lmafile:
         #     lmad.insert(8,items,(mask_to_int(lmad["mask"])>>index)%2)
         # # Count the number of stations contributing and put in a new column
         # lmad.insert(8,'Station Count',lmad[list(self.maskorder)].sum(axis=1))
-        
+
         return lmad
