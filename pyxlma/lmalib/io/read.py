@@ -100,8 +100,18 @@ class lmafile:
         lmad.insert(1,'Datetime',pd.to_timedelta(lmad['time (UT sec of day)'], unit='s')+self.startday)
         
         # Parse out which stations contributed into new columns for each station
+        col_names = self.stations.Name.values
         for index,items in enumerate(self.maskorder[::-1]):
-            lmad.insert(8,items,(mask_to_int(lmad["mask"])>>index)%2)
+            col_names[index] = items+'_'+self.stations.Name.values[index]
+            lmad.insert(8,col_names[index],
+                        (mask_to_int(lmad["mask"])>>index)%2)
         # Count the number of stations contributing and put in a new column
-        lmad.insert(8,'Station Count',lmad[list(self.maskorder)].sum(axis=1))
+        lmad.insert(8,'Station Count',lmad[col_names].sum(axis=1))
+
+        # Version for using only station symbols. Not as robust.
+        # for index,items in enumerate(self.maskorder[::-1]):
+        #     lmad.insert(8,items,(mask_to_int(lmad["mask"])>>index)%2)
+        # # Count the number of stations contributing and put in a new column
+        # lmad.insert(8,'Station Count',lmad[list(self.maskorder)].sum(axis=1))
+        
         return lmad
