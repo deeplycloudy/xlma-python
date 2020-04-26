@@ -1,13 +1,40 @@
+"""
+To automatically compare a file with the specification in this file,
+
+import xarray as xr
+from pyxlma.lmalib.io.cf_netcdf import new_dataset
+ds_test = xr.open_dataset('test_LMA_dataset.nc', decode_cf=False)
+ds_valid = new_dataset(flashes=ds_orig.dims['number_of_flashes'], events=ds_orig.dims['number_of_events'])
+try:
+    xr.testing.assert_identical(ds_valid, ds_test)
+except AssertionError as e:
+    print("Left dataset is the validation dataset
+    print("Right Dataset is the test dataset provided")
+    report=str(e)
+    print(report)
+    with open('report.txt', 'w') as f:
+        f.write(report)
+"""
+
 import copy
 
 import numpy as np
 import xarray as xr
 
 # this dictionary describes the minmum variables that must be included for a valid LMA NetCDF event and flash file.
+# The title, history, institution, source, references, and comment attributes are all type string, per CF recommendations
+# http://cfconventions.org,
+# https://www.unidata.ucar.edu/software/netcdf/conventions.html
+
 __template_dataset = {'coords': {},
- 'attrs': {'title': 'Lightning Mapping Array dataset',
+ 'attrs': {'title': 'Lightning Mapping Array dataset, L1b events and L2 flashes',
   'production_date': '1970-01-01 00:00:00 +00:00',
   'production_site': 'Default',
+  'institution':'unknown',
+  'comment':'',
+  'history':'',
+  'references':'',
+  'source':'VHF Lightning Mapping Array',
   'event_algorithm_name':'unknown',
   'event_algorithm_version':'unknown',
   'flash_algorithm_name':'unknown',
@@ -89,14 +116,14 @@ __template_dataset = {'coords': {},
    },
   'flash_init_latitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
-    'units': 'degrees_east',
+    'units': 'degrees_north',
     'standard_name': 'latitude',
     'long_name': 'Latitude of flash origin',},
    'dtype': 'float32',
    },
   'flash_init_longitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
-    'units': 'degrees_north',
+    'units': 'degrees_east',
     'standard_name': 'longitude',
     'long_name': 'Longitude of flash origin',
     },
@@ -128,7 +155,7 @@ __template_dataset = {'coords': {},
    },
   'flash_center_latitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
-    'units': 'degrees_east',
+    'units': 'degrees_north',
     'standard_name': 'latitude',
     'long_name': 'centroid latitude of the flash',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
@@ -137,7 +164,7 @@ __template_dataset = {'coords': {},
    },
   'flash_center_longitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
-    'units': 'degrees_north',
+    'units': 'degrees_east',
     'standard_name': 'longitude',
     'long_name': 'centroid longitude of the flash',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
@@ -204,7 +231,7 @@ __template_dataset = {'coords': {},
    'dtype': 'float64',
    },
   'event_power': {'dims': ('number_of_events',),
-   'attrs': {'_FillValue': np.nan, 'units': 'dB milliwatts',
+   'attrs': {'_FillValue': np.nan, 'units': 'lg(re 1 W)',
     'long_name': 'Power emitted at event location',
     'coordinates':'event_id event_time event_latitude event_longitude'},
    'dtype': 'float32',
@@ -225,7 +252,7 @@ __template_dataset = {'coords': {},
    'attrs': {'_FillValue': np.nan,
     'long_name': 'Reduced chi-square goodness of fit to arrival time differences',
     'coordinates':'event_id event_time event_latitude event_longitude',
-    'valid_range': [0.0, 1.0],},
+    'valid_range': [0.0, 5.0],},
    'dtype': 'float32',
    },
   'station_code': {'dims': ('number_of_stations',),# 'string1'),
@@ -279,8 +306,10 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
       events (int, optional): number of events
       flashes (int, optional): number of flashes
       stations (int, optional): number of stations
-      production_date: a datetime object
-      production_site (string): Information about the production site
+      production_date: a time string corresponding to the CF standards,
+        e.g., '2020-04-26 21:08:42 +00:00'
+      production_site (string): Information about the production site. Useful
+        if an institution has more than one physical location.
       event_algorithm_name (string): The name of the algorithm used to locate
         station-level triggers as events. For LMA data, usually lma_analysis.
         May also be the command issued to process the data, with any relevant
@@ -292,10 +321,12 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
         with any relevant information regarding space-time separation thresholds
         also reported in data variables reserved for that purpose.
       flash_algorithm_version (string): The flash algorithm version
+      institution, comment, history, references, source: see
+        http://cfconventions.org/Data/cf-conventions/cf-conventions-1.8/cf-conventions.html#description-of-file-contents
      Any other keyword arguments are also added as a global attribute.
 
     If event, flash, or station information are not known, passing None
-    (default) will drop variables associated with that dimension
+    (default) will drop variables associated with that dimension.
     """
     ds_dict = copy.deepcopy(__template_dataset)
     event_keys = [k for k in ds_dict['data_vars'].keys()
@@ -305,11 +336,7 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
     station_keys = [k for k in ds_dict['data_vars'].keys()
                     if k.startswith('station')]
 
-    global_attr_kwargs = ['production_date', 'production_site',
-        'event_algorithm_name', 'event_algorithm_version',
-        'flash_algorithm_name', 'flash_algorithm_version']
     ds_dict['attrs'].update(kwargs)
-
 
     if events is not None:
         ds_dict['dims']['number_of_events'] = events
@@ -324,8 +351,8 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
         ds_dict['dims'].pop('number_of_events')
         for k in event_keys: ds_dict['data_vars'].pop(k)
         # No longer have a tree, so remove parent-child info
-        ds_dict['flash_id']['attrs'].pop('child')
-        ds_dict['flash_id']['attrs'].pop('cf_role')
+        ds_dict['data_vars']['flash_id']['attrs'].pop('child')
+        ds_dict['data_vars']['flash_id']['attrs'].pop('cf_role')
         ds_dict['attrs'].pop('cf_tree_order')
 
     if flashes is not None:
@@ -342,9 +369,9 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
         for k in flash_keys: ds_dict['data_vars'].pop(k)
         # No longer have a tree, so remove parent-child info
         ds_dict['data_vars'].pop('event_parent_flash_id')
-        ds_dict['event_id']['attrs'].pop('parent')
-        ds_dict['event_id']['attrs'].pop('parent_id')
-        ds_dict['event_id']['attrs'].pop('cf_role')
+        ds_dict['data_vars']['event_id']['attrs'].pop('parent')
+        ds_dict['data_vars']['event_id']['attrs'].pop('parent_id')
+        ds_dict['data_vars']['event_id']['attrs'].pop('cf_role')
         ds_dict['attrs'].pop('cf_tree_order')
 
     if stations is not None:
@@ -357,5 +384,7 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
                                                           fill, dtype=dtype)
     else:
         ds_dict['dims'].pop('number_of_stations')
+        for k in station_keys: ds_dict['data_vars'].pop(k)
+
     # import pprint; pprint.pprint(ds_dict)
     return xr.Dataset.from_dict(ds_dict)
