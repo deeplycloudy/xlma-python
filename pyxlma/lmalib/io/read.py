@@ -41,13 +41,21 @@ class lmafile:
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
                     # Full start time and second, likely unneeded
-                    # self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
+                    self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
                 # Find starting and ending rows for station information
                 if line.startswith(b'Coordinate center'):
-                    self.ctr_lat = line.decode().split()[3]
-                    self.ctr_lon = line.decode().split()[4]
-                    self.ctr_alt = line.decode().split()[5]
+                    self.center_lat = line.decode().split()[-3]
+                    self.center_lon = line.decode().split()[-2]
+                    self.center_alt = line.decode().split()[-1]
+                # Number of active stations
+                if line.startswith(b'Number of active stations:'):
+                    self.active_station_c_line = line_no
+                    self.active_staion_c_count = line.decode().split()[-1]
+                # Active stations
+                if line.startswith(b'Active stations:'):
+                    self.active_station_s_line = line_no
+                    self.active_station_s = line.decode().split()[2:]
                 if line.startswith(b'Station information:'):
                     self.station_info_start = line_no
                 if line.startswith(b'Station data:'):
@@ -60,6 +68,13 @@ class lmafile:
                 # Pull data header
                 if line.startswith(b'Data:'): 
                     self.names = [x.strip(' ') for x in line.decode()[5:-1].split(",")]
+                # Text format
+                if line.startswith(b'Data format:'):
+                    self.format = line.decode().split(' ')[2:]
+                # Total number of events in file
+                if line.startswith(b'Number of events:'):
+                    self.events_line  = line_no
+                    self.events_count = line.decode().split()[-1] 
                 # Find start line of the data
                 if line.rstrip() == b"*** data ***":
                     break
@@ -97,7 +112,7 @@ class lmafile:
         """
         # Read in data
         lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
-                            header=None,skiprows=self.data_starts+1)
+                            header=None,skiprows=self.data_starts+1,error_bad_lines=False)
         lmad.columns = self.names
         
         # Convert seconds column to new datetime-formatted column
@@ -110,12 +125,5 @@ class lmafile:
             lmad.insert(8,col_names[index],
                         (mask_to_int(lmad["mask"])>>index)%2)
         # Count the number of stations contributing and put in a new column
-        lmad.insert(8,'Station Count',lmad[col_names].sum(axis=1))
-
-        # Version for using only station symbols. Not as robust.
-        # for index,items in enumerate(self.maskorder[::-1]):
-        #     lmad.insert(8,items,(mask_to_int(lmad["mask"])>>index)%2)
-        # # Count the number of stations contributing and put in a new column
-        # lmad.insert(8,'Station Count',lmad[list(self.maskorder)].sum(axis=1))
-
+        lmad.insert(8,'Station Count',lmad[list(self.maskorder)].sum(axis=1))
         return lmad
