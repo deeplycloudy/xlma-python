@@ -86,6 +86,13 @@ __template_dataset = {'coords': {},
      'dtype': 'float32',
      'data' : 0.0,
      'shape': ()},
+  'network_center_altitude': {'dims': (),
+     'attrs': {'long_name': 'Altitude of network center used in event processing',
+      'units': 'meter',
+      'standard_name': 'altitude',},
+     'dtype': 'float32',
+     'data' : 0.0,
+     'shape': ()},
   'flash_id': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.iinfo(np.uint64).max,
              'child':'event_id', 'cf_role':'tree_id'},
@@ -248,6 +255,13 @@ __template_dataset = {'coords': {},
     'valid_range': [5, 255],},
    'dtype': 'uint8',
    },
+  'event_contributing_stations': {'dims': ('number_of_events','number_of_stations'),
+   'attrs': {'_FillValue': 255,
+    'long_name': 'Boolean indicating if station contributed to event',
+    'coordinates':'event_id station_code station_network event_time event_latitude event_longitude',
+    'valid_range': [0, 1],},
+   'dtype': 'uint8',
+   },
   'event_chi2': {'dims': ('number_of_events',),
    'attrs': {'_FillValue': np.nan,
     'long_name': 'Reduced chi-square goodness of fit to arrival time differences',
@@ -338,6 +352,22 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
 
     ds_dict['attrs'].update(kwargs)
 
+    # have to process this separately, later, since it's 2D
+    event_keys.remove('event_contributing_stations')
+
+    if stations is not None:
+        ds_dict['dims']['number_of_stations'] = stations
+        for k in station_keys:
+            if 'data' not in ds_dict['data_vars'][k].keys():
+                fill = ds_dict['data_vars'][k]['attrs']['_FillValue']
+                dtype = ds_dict['data_vars'][k]['dtype']
+                ds_dict['data_vars'][k]['data'] = np.full(stations,
+                                                          fill, dtype=dtype)
+    else:
+        ds_dict['dims'].pop('number_of_stations')
+        for k in station_keys: ds_dict['data_vars'].pop(k)
+
+
     if events is not None:
         ds_dict['dims']['number_of_events'] = events
         for k in event_keys:
@@ -374,17 +404,12 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
         ds_dict['data_vars']['event_id']['attrs'].pop('cf_role')
         ds_dict['attrs'].pop('cf_tree_order')
 
-    if stations is not None:
-        ds_dict['dims']['number_of_stations'] = stations
-        for k in station_keys:
-            if 'data' not in ds_dict['data_vars'][k].keys():
-                fill = ds_dict['data_vars'][k]['attrs']['_FillValue']
-                dtype = ds_dict['data_vars'][k]['dtype']
-                ds_dict['data_vars'][k]['data'] = np.full(stations,
-                                                          fill, dtype=dtype)
-    else:
-        ds_dict['dims'].pop('number_of_stations')
-        for k in station_keys: ds_dict['data_vars'].pop(k)
+    if (events is not None) and (stations is not None):
+        k = 'event_contributing_stations'
+        fill = ds_dict['data_vars'][k]['attrs']['_FillValue']
+        dtype = ds_dict['data_vars'][k]['dtype']
+        ds_dict['data_vars'][k]['data'] = np.full((events, stations),
+                                                  fill, dtype=dtype)
 
     # import pprint; pprint.pprint(ds_dict)
     return xr.Dataset.from_dict(ds_dict)

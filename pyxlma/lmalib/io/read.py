@@ -1,3 +1,4 @@
+import xarray as xr
 import pandas as pd
 import numpy as np
 import gzip
@@ -17,18 +18,82 @@ def mask_to_int(mask):
     return mask_int
 
 
-def to_dataset(lma):
-    """ lma: an instances of an lmafile object
+def to_dataset(lma_file, event_id_start=0):
+    """ lma_file: an instance of an lmafile object
     """
-    lma_data = lma.readfile()
+    from pyxlma.lmalib.io.cf_netcdf import new_dataset
+    lma_data = lma_file.readfile()
+    starttime = lma_file.starttime
     stations = lma_file.stations
 
     N_events = lma_data.shape[0]
     N_stations = lma_file.stations.shape[0]
-    print(N_events, N_stations, lma_file.stations.shape)
+    ds = new_dataset(events=N_events, stations=N_stations)
 
+    # Index from dataset variable to lma_data column name
+    station_mapping = {
+        'station_code':'ID',
+        'station_latitude':'Lat',
+        'station_longitude':'Long',
+        'station_altitude':'Alt',
+        # TODO Needs other station info columns
+    }
+    event_mapping = {
+        'event_latitude':'lat',
+        'event_longitude':'lon',
+        'event_altitude':'alt(m)',
+        # 'event_time':'Datetime',
+        'event_power':'P(dBW)',
+        'event_stations':'Station Count',
+        'event_chi2':'reduced chi^2',
+    }
 
+    for var, col in event_mapping.items():
+        ds[var][:] = lma_data[col]
+    for var, col in station_mapping.items():
+        ds[var][:] = stations[col]
 
+    ds['event_id'][:] = (event_id_start
+                         + np.arange(N_events, dtype=ds['event_id'].dtype))
+    ds['event_mask'][:] = lma_file.mask_ints
+    ds.event_chi2.attrs['valid_range'][1] = lma_file.maximum_chi2
+    ds.event_stations.attrs['valid_range'][0] = lma_file.minimum_stations
+
+    time_units = lma_file.startday.strftime(
+        "seconds since %Y-%m-%d 00:00:00 +00:00")
+    ds['event_time'].data = lma_data.Datetime
+    ds['event_time'].attrs.pop('units')
+    ds['event_time'].encoding['units'] = time_units
+
+    # Assign to the data attribute to not overwrite units metadata
+    ds['network_center_latitude'].data = lma_file.center_lat
+    ds['network_center_longitude'].data = lma_file.center_lon
+    ds['network_center_altitude'].data = lma_file.center_alt
+    ds['station_network'][:] = lma_file.network_location
+
+    # Global attrs
+    ds.attrs['title'] = "Lightning Mapping Array Dataset, L1b events and station information"
+    # production_date:          1970-01-01 00:00:00 +00:00
+    ds.attrs['history'] = "LMA source file created "+lma_file.file_created
+    ds.attrs['event_algorithm_name'] = lma_file.analysis_program
+    ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
+
+    # -- Populate the station mask information --
+    # int, because NetCDF doesn't have booleans
+    station_mask_bools = np.zeros((N_events, N_stations), dtype='int8')
+    # Don't presume stations are in the correct order. Construct a lookup
+    # using the order already present in the station_code variable so that
+    # everything lines up along the number_of_stations dimension in ds.
+    stncode_to_index = {}
+    for i, stn in enumerate(ds['station_code'].data):
+        stncode_to_index[stn.decode()] = i
+    for col in lma_file.station_contrib_cols:
+        i = stncode_to_index[col[0]]
+        # col_name = col[2:]
+        station_mask_bools[:, i] = lma_data[col]
+    ds['event_contributing_stations'][:] = station_mask_bools
+
+    return ds
 
 
 class lmafile(object):
@@ -52,6 +117,17 @@ class lmafile(object):
 
         with gzip.open(self.file) as f:
             for line_no, line in enumerate(f):
+                if line.startswith(b'Analysis program:'):
+                    analysis_program = line.decode().split(':')[1:]
+                    self.analysis_program = ':'.join(analysis_program)[:-1]
+                if line.startswith(b'Analysis program version:'):
+                    analysis_program_version = line.decode().split(':')[1:]
+                    self.analysis_program_version = ':'.join(analysis_program_version)[:-1]
+                if line.startswith(b'File created:'):
+                    file_created = line.decode().split(':')[1:]
+                    self.file_created = ':'.join(analysis_program_version)[:-1]
+                if line.startswith(b'Location:'):
+                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1]
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
@@ -60,9 +136,9 @@ class lmafile(object):
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
                 # Find starting and ending rows for station information
                 if line.startswith(b'Coordinate center'):
-                    self.center_lat = line.decode().split()[-3]
-                    self.center_lon = line.decode().split()[-2]
-                    self.center_alt = line.decode().split()[-1]
+                    self.center_lat = float(line.decode().split()[-3])
+                    self.center_lon = float(line.decode().split()[-2])
+                    self.center_alt = float(line.decode().split()[-1])
                 # Number of active stations
                 if line.startswith(b'Number of active stations:'):
                     self.active_station_c_line = line_no
@@ -71,6 +147,12 @@ class lmafile(object):
                 if line.startswith(b'Active stations:'):
                     self.active_station_s_line = line_no
                     self.active_station_s = line.decode().split()[2:]
+                if line.startswith(b'Minimum number of stations per solution:'):
+                    self.minimum_stations = int(line.decode().split(':')[1])
+                if line.startswith(b'Maximum reduced chi-squared:'):
+                    self.maximum_chi2 = float(line.decode().split(':')[1])
+                if line.startswith(b'Maximum chi-squared iterations:'):
+                    self.maximum_chi2_iter = int(line.decode().split(':')[1])
                 if line.startswith(b'Station information:'):
                     self.station_info_start = line_no
                 if line.startswith(b'Station data:'):
@@ -114,8 +196,9 @@ class lmafile(object):
 
         # Drop the station name column that has a redundant station letter code
         # as part of the name and join on station letter code.
-        self.stations =  stations.set_index('ID').drop(columns=['Name']).join(
+        station_combo =  stations.set_index('ID').drop(columns=['Name']).join(
                              overview.set_index('ID'))
+        self.stations = station_combo.reset_index(level=station_combo.index.names)
 
 
     def readfile(self):
@@ -141,12 +224,14 @@ class lmafile(object):
 
         # Parse out which stations contributed into new columns for each station
         col_names = self.stations.Name.values
+        self.mask_ints = mask_to_int(lmad["mask"])
         for index,items in enumerate(self.maskorder[::-1]):
             col_names[index] = items+'_'+self.stations.Name.values[index]
             lmad.insert(8,col_names[index],
-                        (mask_to_int(lmad["mask"])>>index)%2)
+                        (self.mask_ints>>index)%2)
         # Count the number of stations contributing and put in a new column
         lmad.insert(8,'Station Count',lmad[col_names].sum(axis=1))
+        self.station_contrib_cols = col_names
 
         # Version for using only station symbols. Not as robust.
         # for index,items in enumerate(self.maskorder[::-1]):
