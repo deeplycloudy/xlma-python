@@ -16,7 +16,22 @@ def mask_to_int(mask):
             mask_int = np.fromiter((int(v,16) for v in mask), int)
     return mask_int
 
-class lmafile:
+
+def to_dataset(lma):
+    """ lma: an instances of an lmafile object
+    """
+    lma_data = lma.readfile()
+    stations = lma_file.stations
+
+    N_events = lma_data.shape[0]
+    N_stations = lma_file.stations.shape[0]
+    print(N_events, N_stations, lma_file.stations.shape)
+
+
+
+
+
+class lmafile(object):
     def __init__(self,filename):
         """
         Pull the basic metadata from a '.dat.gz' LMA file
@@ -34,8 +49,8 @@ class lmafile:
 
         """
         self.file = filename
-        
-        with gzip.open(self.file) as f: 
+
+        with gzip.open(self.file) as f:
             for line_no, line in enumerate(f):
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
@@ -63,10 +78,10 @@ class lmafile:
                 if line.startswith(b'Metric file:'):
                     self.station_data_end = line_no
                 # Find mask list order
-                if line.startswith(b'Station mask order:'): 
+                if line.startswith(b'Station mask order:'):
                     self.maskorder = line.decode().split()[-1]
                 # Pull data header
-                if line.startswith(b'Data:'): 
+                if line.startswith(b'Data:'):
                     self.names = [x.strip(' ') for x in line.decode()[5:-1].split(",")]
                 # Text format
                 if line.startswith(b'Data format:'):
@@ -74,29 +89,35 @@ class lmafile:
                 # Total number of events in file
                 if line.startswith(b'Number of events:'):
                     self.events_line  = line_no
-                    self.events_count = line.decode().split()[-1] 
+                    self.events_count = line.decode().split()[-1]
                 # Find start line of the data
                 if line.rstrip() == b"*** data ***":
                     break
         f.close()
         self.data_starts = line_no
-        
+
         # Station overview information
-        self.overview = pd.read_fwf(self.file,compression='gzip',
-                                    colspecs=[[10,11],[13,30],[30,35],[35,43],[43,48],
-                                              [48,56],[56,61],[61,68],[68,73]],
-                                    names=['ID', 'Name','win(us)', 'dec_win(us)', 
-                                           'data_ver', 'rms_error(ns)', 
-                                           'sources','<P/P_m>','active'],
-                                    header=None,skiprows=self.station_data_start+1, 
-                                    nrows=self.station_data_start-self.station_info_start-1)
+        overview = pd.read_fwf(self.file,compression='gzip',
+                                colspecs=[[10,11],[13,30],[30,35],[35,43],[43,48],
+                                          [48,56],[56,61],[61,68],[68,73]],
+                                names=['ID', 'Name','win(us)', 'dec_win(us)',
+                                       'data_ver', 'rms_error(ns)',
+                                       'sources','<P/P_m>','active'],
+                                header=None,skiprows=self.station_data_start+1,
+                                nrows=self.station_data_start-self.station_info_start-1)
         # Station Locations
-        self.stations = pd.read_fwf(self.file,compression='gzip',
-                                    colspecs=[[10,11],[13,32],[32,43],[44,56],[56,66],[66,70]],
-                                    names=['ID', 'Name','Lat','Long','Alt','Delay Time'],
-                                    header=None,skiprows=self.station_info_start+1, 
-                                    nrows=self.station_data_start-self.station_info_start-1)
-        
+        stations = pd.read_fwf(self.file,compression='gzip',
+                                colspecs=[[10,11],[13,32],[32,43],[44,56],[56,66],[66,70]],
+                                names=['ID', 'Name','Lat','Long','Alt','Delay Time'],
+                                header=None,skiprows=self.station_info_start+1,
+                                nrows=self.station_data_start-self.station_info_start-1)
+
+        # Drop the station name column that has a redundant station letter code
+        # as part of the name and join on station letter code.
+        self.stations =  stations.set_index('ID').drop(columns=['Name']).join(
+                             overview.set_index('ID'))
+
+
     def readfile(self):
         """
         Read data from '.dat.gz' file and return a Pandas Dataframe using the
@@ -104,20 +125,20 @@ class lmafile:
 
         Datetime' holds the second of day into datetime format
 
-        Station ID (letter identifier) columns each contain booleans (1/0) 
-        if the station contributed to the source 
+        Station ID (letter identifier) columns each contain booleans (1/0)
+        if the station contributed to the source
 
-        'Station Count' column containes the total number of contributing 
-        stations for each source 
+        'Station Count' column containes the total number of contributing
+        stations for each source
         """
         # Read in data
         lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
                             header=None,skiprows=self.data_starts+1,error_bad_lines=False)
         lmad.columns = self.names
-        
+
         # Convert seconds column to new datetime-formatted column
         lmad.insert(1,'Datetime',pd.to_timedelta(lmad['time (UT sec of day)'], unit='s')+self.startday)
-        
+
         # Parse out which stations contributed into new columns for each station
         col_names = self.stations.Name.values
         for index,items in enumerate(self.maskorder[::-1]):
