@@ -17,9 +17,97 @@ def mask_to_int(mask):
             mask_int = np.fromiter((int(v,16) for v in mask), int)
     return mask_int
 
+def combine_datasets(lma_data):
+    """ lma_data is a list of xarray datasets of the type returned by
+        pyxlma.lmalib.io.cf_netcdf.new_dataset or
+        pyxlma.lmalib.io.read.to_dataset
+    """
+    # Get a list of all the global attributes from each dataset
+    attrs = [d.attrs for d in lma_data]
+    # Create a dict of {attr_name: [list of values from each dataset]}
+    # Will be None if that attribute is not present in one of the lma_data
+    all_attrs = {
+        k: [d.get(k) for d in attrs]
+        for k in set().union(*attrs)
+    }
+    final_attrs = {}
+    for k in all_attrs:
+        attr_vals =  all_attrs[k]
+        set_of_values = set(attr_vals)
+        if len(set_of_values) == 1:
+            final_attrs[k] = tuple(set_of_values)[0]
+        else:
+            final_attrs[k] = '; '.join(attr_vals)
+    # print(final_attrs)
+
+    # Get just the pure-station variables
+    lma_station_data = xr.concat(
+        [d.drop_dims(['number_of_events']) for d in lma_data],
+        dim='number_of_files'
+    )
+    # print(lma_station_data)
+
+    # Get just the pure-event variables
+    lma_event_data = xr.concat(
+        [d.drop_dims(['number_of_stations']).drop(
+            ['network_center_latitude',
+             'network_center_longitude',
+             'network_center_altitude',]
+          ) for d in lma_data],
+        dim='number_of_events'
+    )
+    # print(lma_event_data)
+
+    # Get any varaibles with joint dimensions,
+    # i.e., ('number_of_events', 'number_of_stations')
+    event_contributing_stations = xr.concat(
+        [d['event_contributing_stations'] for d in lma_data],
+        dim='number_of_events'
+    )
+    # print(event_contributing_stations)
+
+    # Find the mean of the station data, and then add back the event data
+    ds = xr.merge([lma_station_data.mean(dim='number_of_files'),
+                   lma_event_data],
+                  compat='equals')
+    # ... and then restore the contributing stations.
+    # Note the coordinate variables are being used as labels to ensure data remain aligned.
+    ds['event_contributing_stations'] = event_contributing_stations
+
+    # Restore the global attributes
+    ds.attrs.update(final_attrs)
+
+    return ds
+
+def dataset(filenames):
+    """ Create an xarray dataset of the type returned by
+        pyxlma.lmalib.io.cf_netcdf.new_dataset for each filename in filenames
+    """
+    lma_data = []
+    starttime = None
+    next_event_id = 0
+    for filename in filenames:
+        lma_file = lmafile(filename)
+        if starttime is None:
+            starttime = lma_file.starttime
+        else:
+            starttime = min(lma_file.starttime, starttime)
+        # Accounting for empty files
+        try:
+            ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
+                {'number_of_stations':'station_code', 'number_of_events':'event_id'})
+            lma_data.append(ds)
+            next_event_id += ds.dims['number_of_events']
+        except:
+            raise
+    ds = combine_datasets(lma_data)
+    return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
     """ lma_file: an instance of an lmafile object
+
+    returns an xarray dataset of the type returned by
+        pyxlma.lmalib.io.cf_netcdf.new_dataset
     """
     from pyxlma.lmalib.io.cf_netcdf import new_dataset
     lma_data = lma_file.readfile()
@@ -36,13 +124,13 @@ def to_dataset(lma_file, event_id_start=0):
         'station_latitude':'Lat',
         'station_longitude':'Long',
         'station_altitude':'Alt',
-        # TODO Needs other station info columns
+        'station_event_fraction':'sources',
+        'station_power_ratio':'<P/P_m>',
     }
     event_mapping = {
         'event_latitude':'lat',
         'event_longitude':'lon',
         'event_altitude':'alt(m)',
-        # 'event_time':'Datetime',
         'event_power':'P(dBW)',
         'event_stations':'Station Count',
         'event_chi2':'reduced chi^2',
@@ -125,7 +213,7 @@ class lmafile(object):
                     self.analysis_program_version = ':'.join(analysis_program_version)[:-1]
                 if line.startswith(b'File created:'):
                     file_created = line.decode().split(':')[1:]
-                    self.file_created = ':'.join(analysis_program_version)[:-1]
+                    self.file_created = ':'.join(file_created)[:-1]
                 if line.startswith(b'Location:'):
                     self.network_location = ':'.join(line.decode().split(':')[1:])[:-1]
                 if line.startswith(b'Data start time:'):
@@ -230,7 +318,7 @@ class lmafile(object):
             lmad.insert(8,col_names[index],
                         (self.mask_ints>>index)%2)
         # Count the number of stations contributing and put in a new column
-        lmad.insert(8,'Station Count',lmad[col_names].sum(axis=1))
+        lmad.insert(8,'Station Count',lmad[col_names].sum(axis=1).astype('uint8'))
         self.station_contrib_cols = col_names
 
         # Version for using only station symbols. Not as robust.

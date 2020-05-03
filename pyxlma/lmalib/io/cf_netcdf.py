@@ -300,6 +300,19 @@ __template_dataset = {'coords': {},
     'positive': 'up'},
    'dtype': 'float32',
    },
+  'station_event_fraction': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': np.nan,
+    'long_name': "Fraction of events to which this station contributed",
+    'valid_range': [0.0, 100.0],
+    'units': 'percent',},
+   'dtype': 'float32',
+   },
+  'station_power_ratio': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': np.nan,
+    'long_name': "<P/P_m>"},
+   'dtype': 'float32',
+   },
+
 }}
 
 def validate_events(ds, dim='number_of_events', check_events=True, check_flashes=True):
