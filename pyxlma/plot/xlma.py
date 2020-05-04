@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import datetime as dt
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
 
 import cartopy
 import cartopy.crs as ccrs
@@ -39,21 +39,74 @@ ydiv = 0.01
 zdiv = 0.1
 
 
+class FractionalSecondFormatter(Formatter):
+    def __init__(self, axis):
+        self._axis = axis
+
+    def __call__(self, x, pos=None):
+        """ Formats seconds of the day to HHMM:SS.SSSSSS, with the fractional
+            part varying in length based on the total interval.
+            Maximum resolution is 1 microsecond, due to limitation in datetime.
+        """
+
+        tick_date = md.num2date(x)
+        interval = [md.num2date(d) for d in self._axis.get_xlim()]
+        delta_sec = (interval[1] - interval[0]).total_seconds()
+        if (delta_sec < 30):
+            fmt = '%S'
+        else:
+            fmt = '%H%M:%S'
+
+        # for most plots, it seems like pos=1 is the first label, even though pos=0 is also requested.
+        # some plots do in fact plot the label for both pos=0 and pos=1, so go with 1 for safety
+        if pos == 1:
+            fmt = '%H%M:%S'
+
+        # This could be generated algorithmically - the pattern is obvious.
+        frac_fmt = '%.6f'
+        if delta_sec > 0.00005:
+            frac_fmt = '%.5f'
+        if delta_sec > 0.0005:
+            frac_fmt = '%.4f'
+        if delta_sec > 0.005:
+            frac_fmt = '%.3f'
+        if delta_sec > 0.05:
+            frac_fmt = '%.2f'
+        if delta_sec > 0.5:
+            frac_fmt = '%.1f'
+        if delta_sec > 5:
+            frac_fmt = '%.0f'
+
+        if pos is None:
+            # Be verbose for the status readout
+            fmt = '%H%M:%S'
+            frac_fmt = '%.6f'
+
+        # if pos is not None:
+        #     print x, delta_sec, frac_fmt, frac_fmt % (tick_date.microsecond/1.0e6)
+
+        time_str = tick_date.strftime(fmt)
+        frac_str = frac_fmt % (tick_date.microsecond/1.0e6)
+        return time_str + frac_str[1:]
+
+
 class XlmaPlot(object):
 
-    def __init__(self, data, stime, subplot_labels, bkgmap, readtype, **kwargs):
+    def __init__(self, data, stime, subplot_labels, bkgmap, readtype='xarray',
+        **kwargs):
         """
-        data = an data structure matching the lmatools or pyxlma formats:
+        data = an data structure matching the pyxlma formats:
             1. pyxlma.lmalib.io.lmatools.LMAdata.data for reading with lmatools
             2. pyxlma.lmalib.io.read.lma_file.readfile() for a pandas dataframe
               with same headers as LYLOUT files.
+            3. an xarray dataset of the type returned by
+              pyxlma.lmalib.io.read.dataset.
         stime = start time datetime object
         readtype = fileread options "lmatools" or "pandas" dataframe
         """
         self.data = data
         self.readtype = readtype
-        if self.readtype == 'pandas':
-            self.stime = stime
+        self.stime = stime
         self.subplot_labels = subplot_labels
         self.bkgmap = bkgmap
         self.majorFormatter = FormatStrFormatter('%.1f')
@@ -70,7 +123,15 @@ class XlmaPlot(object):
             self.dt_init = dt.datetime(
                 self.data.year, self.data.month, self.data.day)
         if self.readtype == 'pandas':
+            from pandas.plotting import register_matplotlib_converters
+            register_matplotlib_converters()
             self.datetime = self.data.Datetime
+            self.dt_init = dt.datetime(
+                self.stime.year, self.stime.month, self.stime.day)
+        if self.readtype == 'xarray':
+            from pandas.plotting import register_matplotlib_converters
+            register_matplotlib_converters()
+            self.datetime = self.data.event_time.to_dataframe().event_time
             self.dt_init = dt.datetime(
                 self.stime.year, self.stime.month, self.stime.day)
         self._subset_data(**kwargs)
@@ -101,32 +162,26 @@ class XlmaPlot(object):
         self.tbins = 300
 
     def time_height(self):
+        if self.readtype == 'lmatools':
+            t_data = self.data.data['time'][self.cond]
+            z_data = self.data.data['alt'][self.cond]/M2KM
+        if self.readtype == 'pandas':
+            t_data = self.data['time (UT sec of day)'][self.cond]
+            z_data = self.data['alt(m)'][self.cond]/M2KM
+        if self.readtype == 'xarray':
+            # t_data = self.data['event_time'][self.cond].data
+            t_data = self.data['event_time'][self.cond].data # - np.asarray(self.dt_init, dtype='datetime64[ns]')
+            z_data = self.data['event_altitude'][self.cond]/M2KM
         if self.density:
-            if self.readtype == 'lmatools':
-                self.ax_th.hist2d(
-                    self.data.data['time'][self.cond],
-                    self.data.data['alt'][self.cond]/M2KM,
-                    bins=[self.tbins, self.zbins],
-                    density=True, cmap=self.cmap, cmin=0.00001)
-            if self.readtype == 'pandas':
-                self.ax_th.hist2d(
-                    self.data['time (UT sec of day)'][self.cond],
-                    self.data['alt(m)'][self.cond]/M2KM,
-                    bins=[self.tbins, self.zbins],
-                    density=True, cmap=self.cmap, cmin=0.00001)
+            # Note that the need for the call to date2num is probably a bug.
+            # See https://github.com/matplotlib/matplotlib/issues/17319.
+            self.ax_th.hist2d(md.date2num(t_data), z_data, bins=[self.tbins, self.zbins],
+                density=True, cmap=self.cmap, cmin=0.00001)
         else:
-            if self.readtype == 'lmatools':
-                self.ax_th.scatter(
-                    self.data.data['time'][self.cond],
-                    self.data.data['alt'][self.cond]/M2KM, c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
-            if self.readtype == 'pandas':
-                self.ax_th.scatter(
-                    self.data['time (UT sec of day)'][self.cond],
-                    self.data['alt(m)'][self.cond]/M2KM, c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
+            self.ax_th.scatter(t_data, z_data, c=self.c,
+                vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
+                marker='o', edgecolors='none')
+
         self.ax_th.set_xlabel('Time (UTC)')
         self.ax_th.set_ylabel('Altitude (km)')
         self.ax_th.set_yticks(self.yticks)
@@ -136,25 +191,30 @@ class XlmaPlot(object):
         # Now fix the ticks and labels on the time axis
         # Ticks
         tstep = int(1e6*(self.tlim[1] - self.tlim[0]).total_seconds()/5)
-        sod_start = (self.tlim[0] - self.dt_init).total_seconds()
-        xticks = [sod_start + i*tstep*1e-6 for i in range(6)]
-        self.ax_th.set_xlim(xticks[0], xticks[-1])
-        self.ax_th.set_xticks(xticks)
-        # Tick labels
-        dt1 = self.tlim[0]
-        dt2 = dt1 + dt.timedelta(microseconds=tstep)
-        dt3 = dt2 + dt.timedelta(microseconds=tstep)
-        dt4 = dt3 + dt.timedelta(microseconds=tstep)
-        dt5 = dt4 + dt.timedelta(microseconds=tstep)
-        dt6 = dt5 + dt.timedelta(microseconds=tstep)
         if tstep < 5000000:
             tfmt = '%H:%M:%S.%f'
         else:
             tfmt = '%H:%M:%S000'
-        self.ax_th.set_xticklabels([
-            dt1.strftime(tfmt)[:-3], dt2.strftime(tfmt)[:-3],
-            dt3.strftime(tfmt)[:-3], dt4.strftime(tfmt)[:-3],
-            dt5.strftime(tfmt)[:-3], dt6.strftime(tfmt)[:-3]])
+        if self.readtype != 'xarray':
+            sod_start = (self.tlim[0] - self.dt_init).total_seconds()
+            xticks = [sod_start + i*tstep*1e-6 for i in range(6)]
+            self.ax_th.set_xlim(xticks[0], xticks[-1])
+            self.ax_th.set_xticks(xticks)
+            # Tick labels
+            dt1 = self.tlim[0]
+            dt2 = dt1 + dt.timedelta(microseconds=tstep)
+            dt3 = dt2 + dt.timedelta(microseconds=tstep)
+            dt4 = dt3 + dt.timedelta(microseconds=tstep)
+            dt5 = dt4 + dt.timedelta(microseconds=tstep)
+            dt6 = dt5 + dt.timedelta(microseconds=tstep)
+            self.ax_th.set_xticklabels([
+                dt1.strftime(tfmt)[:-3], dt2.strftime(tfmt)[:-3],
+                dt3.strftime(tfmt)[:-3], dt4.strftime(tfmt)[:-3],
+                dt5.strftime(tfmt)[:-3], dt6.strftime(tfmt)[:-3]])
+        else:
+            self.ax_th.set_xlim(self.tlim[0], self.tlim[1])
+            # self.ax_th.xaxis.set_major_locator(MaxNLocator(6))
+            self.ax_th.xaxis.set_major_formatter(FractionalSecondFormatter(self.ax_th))
         # Subplot letter
         if self.subplot_labels == True:
             plt.text(0.05, 0.8, '(a)', fontsize='x-large', weight='bold',
@@ -162,32 +222,23 @@ class XlmaPlot(object):
                      transform=self.ax_th.transAxes)
 
     def lon_alt(self):
+        if self.readtype == 'lmatools':
+            lon_data = self.data.data['lon'][self.cond]
+            alt_data = self.data.data['alt'][self.cond]/M2KM
+        if self.readtype == 'pandas':
+            lon_data = self.data['lon'][self.cond]
+            alt_data = self.data['alt(m)'][self.cond]/M2KM
+        if self.readtype == 'xarray':
+            lon_data = self.data['event_longitude'][self.cond]
+            alt_data = self.data['event_altitude'][self.cond]/M2KM
         if self.density:
-            if self.readtype == 'lmatools':
-                self.ax_lon.hist2d(
-                    self.data.data['lon'][self.cond],
-                    self.data.data['alt'][self.cond]/M2KM,
-                    bins=[self.xbins, self.zbins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
-            if self.readtype == 'pandas':
-                self.ax_lon.hist2d(
-                    self.data['lon'][self.cond],
-                    self.data['alt(m)'][self.cond]/M2KM,
-                    bins=[self.xbins, self.zbins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
+            self.ax_lon.hist2d(lon_data, alt_data,
+                bins=[self.xbins, self.zbins], density=True, cmap=self.cmap,
+                cmin=0.00001)
         else:
-            if self.readtype == 'lmatools':
-                self.ax_lon.scatter(
-                    self.data.data['lon'][self.cond],
-                    self.data.data['alt'][self.cond]/M2KM, c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
-            if self.readtype == 'pandas':
-                self.ax_lon.scatter(
-                    self.data['lon'][self.cond],
-                    self.data['alt(m)'][self.cond]/M2KM, c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
+            self.ax_lon.scatter(lon_data, alt_data, c=self.c,
+                vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
+                marker='o', edgecolors='none')
         self.ax_lon.set_ylabel('Altitude (km MSL)')
         self.ax_lon.set_yticks(self.yticks)
         self.ax_lon.set_ylim(self.zlim)
@@ -202,14 +253,13 @@ class XlmaPlot(object):
 
     def histogram(self):
         if self.readtype == 'lmatools':
-            self.ax_hist.hist(self.data.data['alt'][self.cond]/M2KM,
-                              orientation='horizontal',
-                              density=True, bins=80, range=(0, 20))
-
+            alt_data = self.data.data['alt'][self.cond]/M2KM
         if self.readtype == 'pandas':
-            self.ax_hist.hist(self.data['alt(m)'][self.cond]/M2KM,
-                              orientation='horizontal',
-                              density=True, bins=80, range=(0, 20))
+            alt_data = self.data['alt(m)'][self.cond]/M2KM
+        if self.readtype == 'xarray':
+            alt_data = self.data['event_altitude'][self.cond]/M2KM
+        self.ax_hist.hist(alt_data, orientation='horizontal',
+                          density=True, bins=80, range=(0, 20))
         self.ax_hist.set_xticks([0, 0.1, 0.2, 0.3])
         self.ax_hist.set_yticks(self.yticks)
         self.ax_hist.set_ylim(self.zlim)
@@ -220,40 +270,29 @@ class XlmaPlot(object):
             plt.text(0.30, 0.80, '(c)', fontsize='x-large', weight='bold',
                      horizontalalignment='center', verticalalignment='center',
                      transform=self.ax_hist.transAxes)
-        plt.text(0.25, 0.10,
-#                  str(len(self.data.data['alt'][self.cond])) + ' src',
-                 str(len(self.data['alt(m)'][self.cond])) + ' src',
+        plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
                  fontsize='small',
                  horizontalalignment='left', verticalalignment='center',
                  transform=self.ax_hist.transAxes)
 
     def plan_view(self):
+        if self.readtype == 'lmatools':
+            lon_data = self.data.data['lon'][self.cond]
+            lat_data = self.data.data['lat'][self.cond]
+        if self.readtype == 'pandas':
+            lon_data = self.data['lon'][self.cond]
+            lat_data = self.data['lat'][self.cond]
+        if self.readtype == 'xarray':
+            lon_data = self.data['event_longitude'][self.cond]
+            lat_data = self.data['event_latitude'][self.cond]
         if self.density:
-            if self.readtype == 'lmatools':
-                self.ax_plan.hist2d(
-                    self.data.data['lon'][self.cond],
-                    self.data.data['lat'][self.cond],
-                    bins=[self.xbins, self.ybins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
-            if self.readtype == 'pandas':
-                self.ax_plan.hist2d(
-                    self.data['lon'][self.cond],
-                    self.data['lat'][self.cond],
-                    bins=[self.xbins, self.ybins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
+            self.ax_plan.hist2d(lon_data, lat_data,
+                bins=[self.xbins, self.ybins], density=True, cmap=self.cmap,
+                cmin=0.00001)
         else:
-            if self.readtype == 'lmatools':
-                self.ax_plan.scatter(
-                    self.data.data['lon'][self.cond],
-                    self.data.data['lat'][self.cond], c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
-            if self.readtype == 'pandas':
-                self.ax_plan.scatter(
-                    self.data['lon'][self.cond],
-                    self.data['lat'][self.cond], c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
+            self.ax_plan.scatter(lon_data, lat_data, c=self.c,
+                vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
+                marker='o', edgecolors='none')
         if self.bkgmap == True:
             if COUNTIES is not None:
                 self.ax_plan.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
@@ -279,32 +318,23 @@ class XlmaPlot(object):
                      transform=self.ax_plan.transAxes)
 
     def lat_alt(self):
+        if self.readtype == 'lmatools':
+            alt_data = self.data.data['alt'][self.cond]/M2KM
+            lat_data = self.data.data['lat'][self.cond]
+        if self.readtype == 'pandas':
+            alt_data = self.data['alt(m)'][self.cond]/M2KM
+            lat_data = self.data['lat'][self.cond]
+        if self.readtype == 'xarray':
+            alt_data = self.data['event_altitude'][self.cond]/M2KM
+            lat_data = self.data['event_latitude'][self.cond]
         if self.density:
-            if self.readtype == 'lmatools':
-                self.ax_lat.hist2d(
-                    self.data.data['alt'][self.cond]/M2KM,
-                    self.data.data['lat'][self.cond],
-                    bins=[self.zbins, self.ybins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
-            if self.readtype == 'pandas':
-                self.ax_lat.hist2d(
-                    self.data['alt(m)'][self.cond]/M2KM,
-                    self.data['lat'][self.cond],
-                    bins=[self.zbins, self.ybins], density=True, cmap=self.cmap,
-                    cmin=0.00001)
+            self.ax_lat.hist2d(alt_data, lat_data,
+                bins=[self.zbins, self.ybins], density=True, cmap=self.cmap,
+                cmin=0.00001)
         else:
-            if self.readtype == 'lmatools':
-                self.ax_lat.scatter(
-                    self.data.data['alt'][self.cond]/M2KM,
-                    self.data.data['lat'][self.cond], c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
-            if self.readtype == 'pandas':
-                self.ax_lat.scatter(
-                    self.data['alt(m)'][self.cond]/M2KM,
-                    self.data['lat'][self.cond], c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
+            self.ax_lat.scatter(alt_data, lat_data, c=self.c,
+                vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
+                marker='o', edgecolors='none')
         self.ax_lat.set_xlabel('Altitude (km MSL)')
         self.ax_lat.set_xticks(self.yticks)
         self.ax_lat.set_xlim(self.zlim)
@@ -366,6 +396,29 @@ class XlmaPlot(object):
                                      self.data['alt(m)']/M2KM <= self.zlim[1])
             self.cond = np.logical_and(self.cond, tmpcond)
 
+        if self.readtype == 'xarray':
+            if 'chi2' in kwargs.keys():
+                self.cond = self.data['event_chi2'] <= kwargs['chi2']
+            else:
+                self.cond = self.data['event_chi2'] <= 5.0
+            if 'xlim' in kwargs.keys():
+                self.xlim = kwargs['xlim']
+                tmpcond = ((self.data['event_longitude'] >= self.xlim[0]) &
+                           (self.data['event_longitude'] <= self.xlim[1]))
+                self.cond = np.logical_and(self.cond, tmpcond)
+            if 'ylim' in kwargs.keys():
+                self.ylim = kwargs['ylim']
+                tmpcond = ((self.data['event_latitude'] >= self.ylim[0]) &
+                           (self.data['event_latitude'] <= self.ylim[1]))
+                self.cond = np.logical_and(self.cond, tmpcond)
+            if 'zlim' in kwargs.keys():
+                self.zlim = kwargs['zlim']
+            else:
+                self.zlim = (0, 20)
+            tmpcond = ((self.data['event_altitude']/M2KM >= self.zlim[0]) &
+                       (self.data['event_altitude']/M2KM <= self.zlim[1]))
+            self.cond = np.logical_and(self.cond, tmpcond)
+
     def _setup_colors(self, **kwargs):
         self.cmap = kwargs['cmap']
         if 'density' in kwargs.keys():
@@ -376,7 +429,8 @@ class XlmaPlot(object):
             self.tlim = kwargs['tlim']
             tmpcond = np.logical_and(self.datetime >= self.tlim[0],
                                      self.datetime <= self.tlim[1])
-            self.cond = np.logical_and(self.cond, tmpcond)
+            self.cond = np.logical_and(np.asarray(self.cond),
+                                       np.asarray(tmpcond))
             self.vmax = (self.tlim[1] -
                          self.datetime[self.cond].min()).total_seconds()
             ldiff = self.datetime[self.cond] - self.datetime[self.cond].min()
@@ -396,6 +450,11 @@ class XlmaPlot(object):
                     self.data['time (UT sec of day)'][self.cond].min()
                 self.vmax = self.data['time (UT sec of day)'][self.cond].max() - \
                     self.data['time (UT sec of day)'][self.cond].min()
+            if self.readtype == 'xarray':
+                self.c = self.data['event_time'][self.cond] - \
+                    self.data['event_time'][self.cond].min()
+                self.vmax = self.data['event_time'][self.cond].max() - \
+                    self.data['event_time'][self.cond].min()
         self.vmin = 0
         if 's' in kwargs.keys():
             self.s = kwargs['s']

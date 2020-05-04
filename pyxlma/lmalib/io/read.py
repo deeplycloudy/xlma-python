@@ -101,6 +101,10 @@ def dataset(filenames):
         except:
             raise
     ds = combine_datasets(lma_data)
+    ds = ds.reset_index(('number_of_events', 'number_of_stations'))
+    ds = ds.reset_coords(('number_of_events_', 'number_of_stations_'))
+    ds = ds.rename({'number_of_events_':'event_id',
+                    'number_of_stations_':'station_code'})
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
