@@ -197,7 +197,7 @@ class XlmaPlot(object):
             if self.readtype == 'xarray':
                 # t_data = self.data['event_time'][self.cond].data
                 t_data = self.data['event_time'][self.cond].data # - np.asarray(self.dt_init, dtype='datetime64[ns]')
-                z_data = self.data['event_altitude'][self.cond]/M2KM
+                z_data = self.data['event_altitude'][self.cond].data/M2KM
             if self.density:
                 # Note that the need for the call to date2num is probably a bug.
                 # See https://github.com/matplotlib/matplotlib/issues/17319.
@@ -261,8 +261,8 @@ class XlmaPlot(object):
                 lon_data = self.data['lon'][self.cond]
                 alt_data = self.data['alt(m)'][self.cond]/M2KM
             if self.readtype == 'xarray':
-                lon_data = self.data['event_longitude'][self.cond]
-                alt_data = self.data['event_altitude'][self.cond]/M2KM
+                lon_data = self.data['event_longitude'][self.cond].data
+                alt_data = self.data['event_altitude'][self.cond].data/M2KM
             if self.density:
                 self.ax_lon.hist2d(lon_data, alt_data,
                     bins=[self.xbins, self.zbins], density=True, cmap=self.cmap,
@@ -290,7 +290,7 @@ class XlmaPlot(object):
             if self.readtype == 'pandas':
                 alt_data = self.data['alt(m)'][self.cond]/M2KM
             if self.readtype == 'xarray':
-                alt_data = self.data['event_altitude'][self.cond]/M2KM
+                alt_data = self.data['event_altitude'][self.cond].data/M2KM
             self.ax_hist.hist(alt_data, orientation='horizontal',
                               density=True, bins=80, range=(0, 20))
             plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
@@ -320,8 +320,8 @@ class XlmaPlot(object):
                 lon_data = self.data['lon'][self.cond]
                 lat_data = self.data['lat'][self.cond]
             if self.readtype == 'xarray':
-                lon_data = self.data['event_longitude'][self.cond]
-                lat_data = self.data['event_latitude'][self.cond]
+                lon_data = self.data['event_longitude'][self.cond].data
+                lat_data = self.data['event_latitude'][self.cond].data
             if self.density:
                 self.ax_plan.hist2d(lon_data, lat_data,
                     bins=[self.xbins, self.ybins], density=True, cmap=self.cmap,
@@ -363,8 +363,8 @@ class XlmaPlot(object):
                 alt_data = self.data['alt(m)'][self.cond]/M2KM
                 lat_data = self.data['lat'][self.cond]
             if self.readtype == 'xarray':
-                alt_data = self.data['event_altitude'][self.cond]/M2KM
-                lat_data = self.data['event_latitude'][self.cond]
+                alt_data = self.data['event_altitude'][self.cond].data/M2KM
+                lat_data = self.data['event_latitude'][self.cond].data
             if self.density:
                 self.ax_lat.hist2d(alt_data, lat_data,
                     bins=[self.zbins, self.ybins], density=True, cmap=self.cmap,
@@ -406,8 +406,8 @@ class XlmaPlot(object):
                 lon_data = self.data['lon'][self.cond]
                 lat_data = self.data['lat'][self.cond]
             if self.readtype == 'xarray':
-                lon_data = self.data['event_longitude'][self.cond]
-                lat_data = self.data['event_latitude'][self.cond]
+                lon_data = self.data['event_longitude'][self.cond].data
+                lat_data = self.data['event_latitude'][self.cond].data
             self.inset.hist2d(lon_data, lat_data,
                         bins=[int((self.xlim[1]+self.buffer*2 - self.xlim[0]) / xdiv), 
                               int((self.ylim[1]+self.buffer*2 - self.ylim[0]) / ydiv)],
