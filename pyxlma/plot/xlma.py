@@ -16,16 +16,16 @@ proj_cart = ccrs.PlateCarree(central_longitude=-95)
 
 
 # Add a note about plotting counties by default if metpy is available in docs, and how to add your own map data without relying on built-ins.
-# reader = shpreader.Reader('/Users/vannac/Documents/UScounties/UScounties.shp')
+reader = shpreader.Reader('/Users/vannac/Documents/UScounties/UScounties.shp')
 # reader = shpreader.Reader('/home/vanna/status_plots/UScounties/UScounties.shp')
-# counties = list(reader.geometries())
-# COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
-try:
-    from metpy.plots import USCOUNTIES
-    county_scales = ['20m', '5m', '500k']
-    COUNTIES = USCOUNTIES.with_scale(county_scales[0])
-except ImportError:
-    COUNTIES = None
+counties = list(reader.geometries())
+COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
+# try:
+#     from metpy.plots import USCOUNTIES
+#     county_scales = ['20m', '5m', '500k']
+#     COUNTIES = USCOUNTIES.with_scale(county_scales[0])
+# except ImportError:
+#     COUNTIES = None
 
 
 M2KM = 1000.0
@@ -198,19 +198,22 @@ class XlmaPlot(object):
                 # t_data = self.data['event_time'][self.cond].data
                 t_data = self.data['event_time'][self.cond].data # - np.asarray(self.dt_init, dtype='datetime64[ns]')
                 z_data = self.data['event_altitude'][self.cond].data/M2KM
-            if self.density:
-                # Note that the need for the call to date2num is probably a bug.
-                # See https://github.com/matplotlib/matplotlib/issues/17319.
-                if self.readtype != 'lmatools':
-                    self.ax_th.hist2d(md.date2num(t_data), z_data, bins=[self.tbins, self.zbins],
-                        density=True, cmap=self.cmap, cmin=0.00001)
-                else:
-                    self.ax_th.hist2d(t_data,z_data,bins=[self.tbins, self.zbins],
-                        normed=True, cmap=self.cmap, cmin=0.00001)
+            if np.size(t_data)==0:
+                self.data_exists = False
             else:
-                self.ax_th.scatter(t_data, z_data, c=self.c,
-                    vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
-                    marker='o', edgecolors='none')
+                if self.density:
+                    # Note that the need for the call to date2num is probably a bug.
+                    # See https://github.com/matplotlib/matplotlib/issues/17319.
+                    if self.readtype != 'lmatools':
+                        self.ax_th.hist2d(md.date2num(t_data), z_data, bins=[self.tbins, self.zbins],
+                            density=True, cmap=self.cmap, cmin=0.00001)
+                    else:
+                        self.ax_th.hist2d(t_data,z_data,bins=[self.tbins, self.zbins],
+                            normed=True, cmap=self.cmap, cmin=0.00001)
+                else:
+                    self.ax_th.scatter(t_data, z_data, c=self.c,
+                        vmin=self.vmin, vmax=self.vmax, cmap=self.cmap, s=self.s,
+                        marker='o', edgecolors='none')
 
         self.ax_th.set_xlabel('Time (UTC)')
         self.ax_th.set_ylabel('Altitude (km)')
@@ -400,14 +403,14 @@ class XlmaPlot(object):
                                                     0.01+self.inset_size],projection=ccrs.PlateCarree())
         if self.data_exists==True:
             if self.readtype == 'lmatools':
-                lon_data = self.data.data['lon'][self.cond]
-                lat_data = self.data.data['lat'][self.cond]
+                lon_data = self.data.data['lon'][self.cond2]
+                lat_data = self.data.data['lat'][self.cond2]
             if self.readtype == 'pandas':
-                lon_data = self.data['lon'][self.cond]
-                lat_data = self.data['lat'][self.cond]
+                lon_data = self.data['lon'][self.cond2]
+                lat_data = self.data['lat'][self.cond2]
             if self.readtype == 'xarray':
-                lon_data = self.data['event_longitude'][self.cond].data
-                lat_data = self.data['event_latitude'][self.cond].data
+                lon_data = self.data['event_longitude'][self.cond2].data
+                lat_data = self.data['event_latitude'][self.cond2].data
             self.inset.hist2d(lon_data, lat_data,
                         bins=[int((self.xlim[1]+self.buffer*2 - self.xlim[0]) / xdiv), 
                               int((self.ylim[1]+self.buffer*2 - self.ylim[0]) / ydiv)],
