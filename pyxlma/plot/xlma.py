@@ -15,17 +15,16 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 proj_cart = ccrs.PlateCarree(central_longitude=-95)
 
 
-# Add a note about plotting counties by default if metpy is available in docs, and how to add your own map data without relying on built-ins.
-reader = shpreader.Reader('/Users/vannac/Documents/UScounties/UScounties.shp')
-# reader = shpreader.Reader('/home/vanna/status_plots/UScounties/UScounties.shp')
-counties = list(reader.geometries())
-COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
-# try:
-#     from metpy.plots import USCOUNTIES
-#     county_scales = ['20m', '5m', '500k']
-#     COUNTIES = USCOUNTIES.with_scale(county_scales[0])
-# except ImportError:
-#     COUNTIES = None
+# # Add a note about plotting counties by default if metpy is available in docs, and how to add your own map data without relying on built-ins.
+# reader = shpreader.Reader('UScounties/UScounties.shp')
+# counties = list(reader.geometries())
+# COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
+try:
+    from metpy.plots import USCOUNTIES
+    county_scales = ['20m', '5m', '500k']
+    COUNTIES = USCOUNTIES.with_scale(county_scales[0])
+except ImportError:
+    COUNTIES = None
 
 
 M2KM = 1000.0
