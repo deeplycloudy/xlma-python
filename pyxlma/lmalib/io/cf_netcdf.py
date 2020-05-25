@@ -417,12 +417,26 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
         ds_dict['data_vars']['event_id']['attrs'].pop('cf_role')
         ds_dict['attrs'].pop('cf_tree_order')
 
+
+    k = 'event_contributing_stations'
     if (events is not None) and (stations is not None):
-        k = 'event_contributing_stations'
         fill = ds_dict['data_vars'][k]['attrs']['_FillValue']
         dtype = ds_dict['data_vars'][k]['dtype']
         ds_dict['data_vars'][k]['data'] = np.full((events, stations),
                                                   fill, dtype=dtype)
+    else:
+        ds_dict['data_vars'].pop(k)
 
     # import pprint; pprint.pprint(ds_dict)
     return xr.Dataset.from_dict(ds_dict)
+
+def compare_attributes(ds):
+    """ Compare the attributes of all data variables in ds to the CF spec
+        and print a report of any differences.
+    """
+    dst = __template_dataset['data_vars']
+    dsd = ds.to_dict()['data_vars']
+    for k in dsd.keys():
+        if dst[k]['attrs'] != dsd[k]['attrs']:
+            print(k, '-- Template:', dst[k]['attrs'],
+                  ' -- Actual:', dsd[k]['attrs'])

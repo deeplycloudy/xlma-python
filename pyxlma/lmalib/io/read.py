@@ -164,7 +164,7 @@ def to_dataset(lma_file, event_id_start=0):
     ds['station_network'][:] = lma_file.network_location
 
     # Global attrs
-    ds.attrs['title'] = "Lightning Mapping Array Dataset, L1b events and station information"
+    ds.attrs['title'] = "Lightning Mapping Array Dataset, L1b events and station information."
     # production_date:          1970-01-01 00:00:00 +00:00
     ds.attrs['history'] = "LMA source file created "+lma_file.file_created
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
