@@ -102,8 +102,10 @@ def new_template_dataset():
    'attrs': {'_FillValue': np.nan,
     'standard_name': 'time',
     'long_name': 'Start time of flash',
-    'units': 'seconds since 2018-09-13 00:00:00 +00:00'},
-   'dtype': 'float64',
+    # xarray handles the units for us since we have a datetime dtype
+    # 'units': 'seconds since 2018-09-13 00:00:00 +00:00'
+    },
+   'dtype': 'datetime64[ns]',
    },
   # must have either flash_time_end or flash_duration, or both.
   'flash_time_end': {'dims': ('number_of_flashes',),
@@ -111,15 +113,18 @@ def new_template_dataset():
     'standard_name': 'time',
     'long_name': 'End time of flash',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
-    'units': 'seconds since 2018-09-13 00:00:00 +00:00'},
-   'dtype': 'float64',
+    # xarray handles the units for us since we have a datetime dtype
+    # 'units': 'seconds since 2018-09-13 00:00:00 +00:00'
+    },
+   'dtype': 'datetime64[ns]',
    },
   'flash_duration': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
     'long_name': 'Duration of flash',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
-    'units': 'seconds'},
-   'dtype': 'float64',
+    # 'units': 'seconds'
+    },
+   'dtype': 'timedelta64',
    },
   'flash_init_latitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
@@ -234,8 +239,10 @@ def new_template_dataset():
    'attrs': {'_FillValue': np.nan,
     'standard_name': 'time',
     'long_name': 'Time of event',
-    'units': 'seconds since 2018-09-13 00:00:00 +00:00'},
-   'dtype': 'float64',
+    # xarray handles the units for us since we have a datetime dtype
+    # 'units': 'seconds since 2018-09-13 00:00:00 +00:00'
+    },
+   'dtype': 'datetime64[ns]',
    },
   'event_power': {'dims': ('number_of_events',),
    'attrs': {'_FillValue': np.nan, 'units': 'lg(re 1 W)',
@@ -326,6 +333,9 @@ def validate_events(ds, dim='number_of_events', check_events=True, check_flashes
     # should come with a diff report https://github.com/pydata/xarray/pull/1507
     # use try: except: because we expect differences, and simply want to report them
     pass
+
+# def _check_for_time_dtype():
+    # """ The dataset template dictionary specifies a float dtype (for )"""
 
 def new_dataset(events=None, flashes=None, stations=None, **kwargs):
     """ Create a new, empty xarray dataset for LMA data.

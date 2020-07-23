@@ -154,8 +154,8 @@ def to_dataset(lma_file, event_id_start=0):
     time_units = lma_file.startday.strftime(
         "seconds since %Y-%m-%d 00:00:00 +00:00")
     ds['event_time'].data = lma_data.Datetime
-    ds['event_time'].attrs.pop('units')
-    ds['event_time'].encoding['units'] = time_units
+    # ds['event_time'].attrs.pop('units')
+    # ds['event_time'].encoding['units'] = time_units
 
     # Assign to the data attribute to not overwrite units metadata
     ds['network_center_latitude'].data = lma_file.center_lat

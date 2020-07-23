@@ -50,7 +50,7 @@ def cluster_flashes(events, distance=3000.0, time=0.15):
     n_labels = len(set(labels))
 
     flash_ds = cf_netcdf.new_dataset(flashes=n_labels)
-
+    print(flash_ds)
     # Relabel any noise points with the fill value specified in the CF spec.
     noise = (labels == np.iinfo(np.uint64).max)
     labels[noise] = flash_ds.flash_id.attrs['_FillValue']
