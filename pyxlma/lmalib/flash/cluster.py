@@ -58,7 +58,7 @@ def cluster_flashes(events, distance=3000.0, time=0.15):
 
     # ds = xr.merge([events, flash_ds], compat='override')
     ds = events.merge(flash_ds, compat='override')
-    label_kwargs = cf_netcdf.__template_dataset['data_vars']['event_parent_flash_id']
+    label_kwargs = cf_netcdf.new_template_dataset()['data_vars']['event_parent_flash_id']
     label_kwargs.pop('dtype') # given by the labels array
     ds['event_parent_flash_id'] = xr.DataArray(labels, **label_kwargs)
 

@@ -25,8 +25,8 @@ import xarray as xr
 # The title, history, institution, source, references, and comment attributes are all type string, per CF recommendations
 # http://cfconventions.org,
 # https://www.unidata.ucar.edu/software/netcdf/conventions.html
-
-__template_dataset = {'coords': {},
+def new_template_dataset():
+ __template_dataset = {'coords': {},
  'attrs': {'title': 'Lightning Mapping Array dataset, L1b events and L2 flashes',
   'production_date': '1970-01-01 00:00:00 +00:00',
   'production_site': 'Default',
@@ -313,7 +313,8 @@ __template_dataset = {'coords': {},
    'dtype': 'float32',
    },
 
-}}
+ }}
+ return __template_dataset
 
 def validate_events(ds, dim='number_of_events', check_events=True, check_flashes=True):
     """ Take an xarray dataset ds and check to ensure all expected variables
@@ -355,7 +356,7 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
     If event, flash, or station information are not known, passing None
     (default) will drop variables associated with that dimension.
     """
-    ds_dict = copy.deepcopy(__template_dataset)
+    ds_dict = new_template_dataset()
     event_keys = [k for k in ds_dict['data_vars'].keys()
                   if k.startswith('event')]
     flash_keys = [k for k in ds_dict['data_vars'].keys()
