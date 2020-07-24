@@ -271,27 +271,51 @@ class lmafile(object):
         self.data_starts = line_no
 
         # Station overview information
-        overview = pd.read_fwf(self.file,compression='gzip',
-                                colspecs=[[10,11],[13,30],[30,35],[35,43],[43,48],
-                                          [48,56],[56,61],[61,68],[68,73]],
-                                names=['ID', 'Name','win(us)', 'dec_win(us)',
-                                       'data_ver', 'rms_error(ns)',
-                                       'sources','<P/P_m>','active'],
-                                header=None,skiprows=self.station_data_start+1,
-                                nrows=self.station_data_start-self.station_info_start-1)
-        # Station Locations
-        stations = pd.read_fwf(self.file,compression='gzip',
-                                colspecs=[[10,11],[13,32],[32,43],[44,56],[56,66],[66,70]],
-                                names=['ID', 'Name','Lat','Long','Alt','Delay Time'],
-                                header=None,skiprows=self.station_info_start+1,
-                                nrows=self.station_data_start-self.station_info_start-1)
-
+        stations = pd.DataFrame(self.gen_sta_info(),
+            columns=['ID','Name','Lat','Long','Alt','Delay Time'])
+        overview = pd.DataFrame(self.gen_sta_data(),
+            columns=['ID','Name','win(us)', 'data_ver', 'rms_error(ns)',
+                     'sources','percent','<P/P_m>','active'])
         # Drop the station name column that has a redundant station letter code
         # as part of the name and join on station letter code.
         station_combo =  stations.set_index('ID').drop(columns=['Name']).join(
                              overview.set_index('ID'))
         self.stations = station_combo.reset_index(level=station_combo.index.names)
 
+    def gen_sta_info(self):
+        """ Parse the station info table from the header. Some files do not
+        have fixed width columns, and station names may have spaces, so this
+        function chops out the space-delimited columns to the left and right
+        of the station names.
+        """
+        nstations = self.station_data_start-self.station_info_start-1
+        with gzip.open(self.file) as f:
+            for i in range(self.station_info_start+1):
+                line = next(f)
+            for line in range(nstations):
+                line = next(f)
+                parts = line.decode("utf-8").split()
+                name = ' '.join(parts[2:-6])
+                sta_info, code = parts[0:2]
+                yield (code, name) + tuple(parts[-6:-2])
+
+    def gen_sta_data(self):
+        """ Parse the station data table from the header. Some files do not
+        have fixed width columns, and station names may have spaces, so this
+        function chops out the space-delimited columns to the left and right
+        of the station names.
+        """
+        nstations = self.station_data_start-self.station_info_start-1
+
+        with gzip.open(self.file) as f:
+            for i in range(self.station_data_start+1):
+                line = next(f)
+            for line in range(nstations):
+                line = next(f)
+                parts = line.decode("utf-8").split()
+                name = ' '.join(parts[2:-7])
+                sta_info, code = parts[0:2]
+                yield (code, name) + tuple(parts[-7:])
 
     def readfile(self):
         """
