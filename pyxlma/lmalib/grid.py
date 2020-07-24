@@ -139,7 +139,6 @@ def groupby_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
         grid_edge_ranges[grid_edge_name] = (x0, x1, dx, ximax)
         # Mask out points along the source data dimension that
         # aren't on the grid.
-        print(var_name)
         in_range_check = (ds[var_name]>=x0) & (ds[var_name]<x1)
         if in_range is None:
             in_range = in_range_check

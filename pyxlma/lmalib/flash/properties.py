@@ -1,11 +1,12 @@
 import numpy as np
+import xarray as xr
 from scipy.spatial import Delaunay, ConvexHull
 from scipy.special import factorial
 from scipy.spatial.qhull import QhullError
 
-def local_cartesian(lon, lat, alt):
+def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
     Re = 6378.137e3           #Earth's radius in m
-    latavg, lonavg, altavg = lat.mean(), lon.mean(), alt.mean()
+    latavg, lonavg, altavg = latctr, lonctr, altctr
     x = Re * (np.radians(lonavg) - np.radians(lon)) * np.cos(np.radians(latavg))
     y = Re * (np.radians(latavg) - np.radians(lat))
     z = altavg - alt
@@ -36,11 +37,8 @@ def hull_volume(xyz):
     volume=np.sum(np.abs(simplex_volumes))
     return volume, vertices, simplex_volumes
 
-def event_hull(ds):
-    x,y,z = local_cartesian(ds.event_longitude,
-                            ds.event_latitude,
-                            ds.event_altitude)
-    pointCount = ds.dims['number_of_events']
+def event_hull(x,y,z):
+    pointCount = x.shape[0]
     area = 0.0
     if pointCount > 2:
         try:
@@ -58,7 +56,6 @@ def event_hull(ds):
             # hull indexing has problems here
             print('Setting area to 0 for flash with points %s, %s'
                             % (x, y))
-
     volume = 0.0
     if pointCount > 3:
         # Need four points to make at least one tetrahedron.
@@ -79,8 +76,7 @@ def event_hull(ds):
             z[0] += perturb[2]
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
-    return (x,y,z), area, volume
-
+    return area, volume
 
 def flash_stat_iter(fl_gb):
     for fl_id, ds in fl_gb:
@@ -96,7 +92,10 @@ def flash_stat_iter(fl_gb):
         init_time = ds['event_time'][first_event]
         end_time = ds['event_time'][last_event]
         total_power = ds.event_power.sum()
-        (x,y,z), area, volume = event_hull(ds)
+        x = ds['event_x']
+        y = ds['event_y']
+        z = ds['event_z']
+        area, volume = event_hull(x,y,z)
 #         mean_stations = ds.event_stations.mean()
 #         mean_chi2 = ds.event_chi2.mean()
 
@@ -108,6 +107,17 @@ def flash_stat_iter(fl_gb):
              )
 
 def flash_stats(ds):
+    x,y,z = local_cartesian(ds.event_longitude,
+                            ds.event_latitude,
+                            ds.event_altitude,
+                            ds.network_center_longitude,
+                            ds.network_center_latitude,
+                            0.0,
+                            )
+    ds['event_x'] = xr.DataArray(x, dims=['number_of_events'])
+    ds['event_y'] = xr.DataArray(y, dims=['number_of_events'])
+    ds['event_z'] = xr.DataArray(z, dims=['number_of_events'])
+
     fl_gb = ds.groupby('event_parent_flash_id')
     n_flashes = len(fl_gb.groups)
     fl_stat_dtype = [('fl_id', 'u8'),
@@ -146,4 +156,5 @@ def flash_stats(ds):
     ds['flash_duration'] = ds['flash_time_start'] - ds['flash_time_end']
     ds.reset_index('number_of_flashes')
     ds['flash_id']=ds['number_of_flashes']
+
     return ds
