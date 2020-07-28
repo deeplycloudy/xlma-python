@@ -215,7 +215,7 @@ class lmafile(object):
                 if line.startswith(b'Analysis program version:'):
                     analysis_program_version = line.decode().split(':')[1:]
                     self.analysis_program_version = ':'.join(analysis_program_version)[:-1]
-                if line.startswith(b'File created:'):
+                if line.startswith(b'File created:') | line.startswith(b'Analysis finished:'):
                     file_created = line.decode().split(':')[1:]
                     self.file_created = ':'.join(file_created)[:-1]
                 if line.startswith(b'Location:'):
