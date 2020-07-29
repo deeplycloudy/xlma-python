@@ -255,7 +255,8 @@ def events_grid_iter(ev_gb, min_points_per_flash,
         flash_count = len(filtered_flash_ids)
 
         if flash_count > 0:
-            ds_fl = ds.set_index({'number_of_flashes':'flash_id'})[{'number_of_flashes':filtered_flash_ids}]
+            ds_fl = ds.set_index({'number_of_flashes':'flash_id'})
+            ds_fl = ds_fl.loc[{'number_of_flashes':filtered_flash_ids}]
             flash_mean_area = ds_fl.flash_area.mean()
             flash_std_area = ds_fl.flash_area.std()
             flash_min_area = ds_fl.flash_area.min()
