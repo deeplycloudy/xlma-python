@@ -37,7 +37,7 @@ def hull_volume(xyz):
     volume=np.sum(np.abs(simplex_volumes))
     return volume, vertices, simplex_volumes
 
-def event_hull(x,y,z):
+def event_hull_area(x,y,z):
     pointCount = x.shape[0]
     area = 0.0
     if pointCount > 2:
@@ -56,6 +56,10 @@ def event_hull(x,y,z):
             # hull indexing has problems here
             print('Setting area to 0 for flash with points %s, %s'
                             % (x, y))
+    return area
+
+def event_hull_volume(x,y,z):
+    pointCount = x.shape[0]
     volume = 0.0
     if pointCount > 3:
         # Need four points to make at least one tetrahedron.
@@ -76,83 +80,125 @@ def event_hull(x,y,z):
             z[0] += perturb[2]
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
-    return area, volume
+    return volume
 
-def flash_stat_iter(fl_gb):
-    for fl_id, ds in fl_gb:
-        first_event = np.argmin(ds['event_time'])
-        last_event = np.argmax(ds['event_time'])
-        init_lon = ds['event_longitude'][first_event]
-        init_lat = ds['event_latitude'][first_event]
-        init_alt = ds['event_altitude'][first_event]
-        ctr_lon = ds['event_longitude'].mean()
-        ctr_lat = ds['event_latitude'].mean()
-        ctr_alt = ds['event_altitude'].mean()
-        n_events = ds.dims['number_of_events']
-        init_time = ds['event_time'][first_event]
-        end_time = ds['event_time'][last_event]
-        total_power = ds.event_power.sum()
-        x = ds['event_x']
-        y = ds['event_y']
-        z = ds['event_z']
-        area, volume = event_hull(x,y,z)
-#         mean_stations = ds.event_stations.mean()
-#         mean_chi2 = ds.event_chi2.mean()
-
-        yield(fl_id, n_events, ctr_lon, ctr_lat, ctr_alt,
-              init_lon, init_lat, init_alt,
-              init_time.data, end_time.data,
-              area*1e-6, volume*1e-9,
-              total_power, # mean_stations, mean_chi2
-             )
 
 def flash_stats(ds):
-    x,y,z = local_cartesian(ds.event_longitude,
-                            ds.event_latitude,
-                            ds.event_altitude,
-                            ds.network_center_longitude,
-                            ds.network_center_latitude,
-                            0.0,
-                            )
-    ds['event_x'] = xr.DataArray(x, dims=['number_of_events'])
-    ds['event_y'] = xr.DataArray(y, dims=['number_of_events'])
-    ds['event_z'] = xr.DataArray(z, dims=['number_of_events'])
+    if not('event_x' in ds.variables):
+        x,y,z = local_cartesian(ds.event_longitude,
+                                ds.event_latitude,
+                                ds.event_altitude,
+                                ds.network_center_longitude,
+                                ds.network_center_latitude,
+                                0.0,
+                                )
+        ds['event_x'] = xr.DataArray(x, dims=['number_of_events'])
+        ds['event_y'] = xr.DataArray(y, dims=['number_of_events'])
+        ds['event_z'] = xr.DataArray(z, dims=['number_of_events'])
 
-    fl_gb = ds.groupby('event_parent_flash_id')
-    n_flashes = len(fl_gb.groups)
-    fl_stat_dtype = [('fl_id', 'u8'),
-                     ('flash_event_count', 'u8'),
-                     ('flash_center_longitude', 'f8'),
-                     ('flash_center_latitude', 'f8'),
-                     ('flash_center_altitude', 'f8'),
-                     ('flash_init_longitude', 'f8'),
-                     ('flash_init_latitude', 'f8'),
-                     ('flash_init_altitude', 'f8'),
-                     ('flash_time_start', 'datetime64[ns]'),
-                     ('flash_time_end', 'datetime64[ns]'),
-                     ('flash_area','f8'),
-                     ('flash_volume','f8'),
-                     ('event_total_power','f8'),
-#                      ('event_mean_stations', 'f4'),
-#                      ('event_mean_chi2', 'f4'),
-                    ]
-    ev_iter = flash_stat_iter(fl_gb)
-    agg = np.fromiter(ev_iter, dtype=fl_stat_dtype, count=n_flashes)
+    # === new approach ====
+    # Convert to pandas dataframe here before doing groupby
+    event_vars_needed = ['event_x', 'event_y', 'event_z', 'event_id',
+        'event_parent_flash_id', 'event_time',
+        'event_longitude', 'event_latitude', 'event_altitude',
+        'event_time', 'event_power']
+    df = ds[event_vars_needed].to_dataframe().set_index('event_id')
+    time_sorted_df = df.sort_values(by=['event_time'])
+
+    fl_gb = df.groupby('event_parent_flash_id')
+
+    # Summarize properties of each flash by operating on the groupby.
+    # .loc with indexes or bools, .iloc with integer positions
+    n_events = fl_gb.size() # index is the event_parent_flash_id
+    # print(n_events)
+    # event_parent_flash_id
+    # 0         1
+    # 1         1
+    # 2        23
+    # 3         1
+    # 4         1
+    #          ..
+    # 41774     1
+    # 41775     1
+    # 41776     1
+    # 41777     1
+    # 41778     1
+    # Length: 41779, dtype: int64
+
+    # Index of first_ and last_event_df and are the event_id
+    # first_event = fl_gb['event_time'].idxmin()
+    # first_event_df = df.loc[first_event]
+    # last_event = fl_gb['event_time'].idxmax()
+    # last_event_df = df.loc[last_event]
+    # # since the first/last df above has as index the original event ID, it can
+    # # be used to index the original dataframe (before groupby) to get the
+    # # corresponding flash ID. Use that flash ID as the index for assignment
+    # # to the flash_id array.
+    # This works, but we can just read the parent flash ID value directly since
+    # .loc[first_event] already filters to one event per flash.
+    # first_flidx = df.loc[first_event_df.index]['event_parent_flash_id'].values
+    # last_flidx = df.loc[last_event_df.index]['event_parent_flash_id'].values
+
+    # Per StackOverflow, idxmin/max are very slow. Here's an alternative:
+    # https://stackoverflow.com/questions/55932560/
+    first_event_df = time_sorted_df.drop_duplicates('event_parent_flash_id',
+                                                    keep='first')
+    last_event_df = time_sorted_df.drop_duplicates('event_parent_flash_id',
+                                                   keep='last')
+    first_flidx = first_event_df['event_parent_flash_id'].values
+    last_flidx = last_event_df['event_parent_flash_id'].values
+    # --first_event_df--
+    #                event_x       event_y       event_z  event_parent_flash_id
+    # event_id
+    # 0         1.847077e+06 -5.560333e+06 -2.406689e+09                      0
+    # 1         2.502132e+04  2.629595e+05 -7.198652e+05                      1
+    # 2         1.862935e+04 -8.411014e+04 -9.948140e+03                      2
+    # 3        -6.067912e+03 -1.257087e+05 -1.163374e+04                      3
+    # 4         4.146723e+04 -3.249454e+04 -3.303795e+04                      4
+    # ...                ...           ...           ...                    ...
+    # 119285   -7.507991e+04 -5.834397e+04 -6.107464e+04                  41774
+    # 119286   -6.284118e+04 -2.101047e+04 -6.247398e+04                  41775
+    # 119287    3.876299e+04  6.409286e+04 -6.131979e+04                  41776
+    # 119288    3.070174e+04 -3.972189e+04 -1.196834e+04                  41777
+    # 119289    4.131542e+04 -3.370233e+04 -8.183331e+04                  41778
+
+    mean_event_df = fl_gb[['event_latitude',
+                           'event_longitude',
+                           'event_altitude',]].mean()
+    sum_event_df = fl_gb[['event_power']].sum()
+    # Index of mean_event_df and sum_event_df are the event_parent_flash_id
+    mean_flidx = mean_event_df.index
+    sum_flidx = sum_event_df.index
+
+    # Might be able to speed this up with 'aggregate' instead of 'apply'
+    # could only run on those where point counts meet threshold, instead
+    # testing inside the function
+    # Index of event_area and event_volume are event_parent_flash_id
+    event_area = fl_gb.apply(lambda df: event_hull_area(df['event_x'],
+                                                        df['event_y'],
+                                                        df['event_z']))
+    event_volume = fl_gb.apply(lambda df: event_hull_volume(df['event_x'],
+                                                            df['event_y'],
+                                                            df['event_z']))
+
+    # set the index for the original dataset's flash dimension to the flash_id
+    # and use the event_parent_flash_id from the aggregations above to assign
+    # the data for that flash.
     ds=ds.set_index(number_of_flashes='flash_id')
-    to_assign = ('flash_event_count',
-                 'flash_center_longitude',
-                 'flash_center_latitude',
-                 'flash_center_altitude',
-                 'flash_init_longitude',
-                 'flash_init_latitude',
-                 'flash_init_altitude',
-                 'flash_time_start',
-                 'flash_time_end',
-                 'flash_area',
-                 'flash_volume',
-                )
-    for var in to_assign:
-        ds[var][agg['fl_id']] = agg[var]
+    ds['flash_event_count'][n_events.index] = n_events.values
+    ds['flash_center_longitude'][mean_flidx] = mean_event_df['event_longitude']
+    ds['flash_center_latitude'][mean_flidx] = mean_event_df['event_latitude']
+    ds['flash_center_altitude'][mean_flidx] = mean_event_df['event_altitude']
+    ds['flash_init_longitude'][first_flidx] = first_event_df['event_longitude']
+    ds['flash_init_latitude'][first_flidx] = first_event_df['event_latitude']
+    ds['flash_init_altitude'][first_flidx] = first_event_df['event_altitude']
+    ds['flash_time_start'][first_flidx] = first_event_df['event_time']
+    ds['flash_time_end'][last_flidx] = last_event_df['event_time']
+    ds['flash_area'][event_area.index] = event_area.values
+    ds['flash_volume'][event_volume.index] = event_volume.values
+    ds['flash_power'][sum_flidx] = sum_event_df['event_power']
+
+    # recreate flash_id variable
     ds['flash_duration'] = ds['flash_time_start'] - ds['flash_time_end']
     ds.reset_index('number_of_flashes')
     ds['flash_id']=ds['number_of_flashes']
