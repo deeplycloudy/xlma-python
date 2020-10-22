@@ -83,7 +83,7 @@ def create_regular_grid(var_ranges, center_names=None):
 
     return xr.Dataset(dsg)
 
-def groupby_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
+def assign_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
         append_indices=True):
     """
     dsg is a regular grid created by a call to create_regular_grid ds is the
@@ -147,7 +147,7 @@ def groupby_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
     ds = ds[{var_dim:in_range}]
     # After selecting along this dimension, need to prune the tree of entities that are not parents and children
 
-    # Get the index for each data variabile on the regular grid
+    # Get the index for each data variable on the regular grid
     all_id = []
     maxes = []
     for var_name, grid_edge_var in var_to_grid_map.items():
@@ -163,14 +163,15 @@ def groupby_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
     uids = unique_ids(all_id, maxes, name=pixel_id_var)
     ds[pixel_id_var] = uids
 
-    if len(uids) > 0:
-        group = ds.groupby(pixel_id_var)
-    else:
-        group = None
+    # if len(uids) > 0:
+    #     group = ds.groupby(pixel_id_var)
+    # else:
+    #     group = None
 
-    return ds, group
+    return ds #, group
 
-def events_to_grid(ev_gb, dsg, grid_spatial_coords=['grid_time',
+@profile
+def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                         'grid_altitude', 'grid_latitude', 'grid_longitude'],
                    event_spatial_vars = ('event_altitude', 'event_latitude',
                         'event_longitude',),
@@ -178,13 +179,36 @@ def events_to_grid(ev_gb, dsg, grid_spatial_coords=['grid_time',
                              'flash_extent_density', 'average_flash_area',
                              'stdev_flash_area', 'minimum_flash_area'),
                    min_points_per_flash=3):
-    """ dataset after reduction and assignment of grid indexes, and groupby
-    unique grid box id
+    """ dataset after reduction and assignment of grid indexes
 
     grid_spatial_coords should be in t, z, y, x order, and can be overridden
     for grids in other projection coordinates. If gridding to one of those
     coordinates is not needed, set it to None.
     """
+
+    event_vars_needed = ['event_power', 'event_chi2', 'event_stations',
+        'event_id', 'event_parent_flash_id', 'event_time',]
+    event_vars_needed += list(event_spatial_vars)
+    ev_df = ds[event_vars_needed].to_dataframe()
+
+
+    flash_vars_needed = ['flash_id', 'flash_area',]
+    fl_df = ds[flash_vars_needed].to_dataframe()
+
+
+    replicated_flashes = list(itertools.chain.from_iterable(
+        flash_groups[fid] for fid in flash_ids))
+
+    # Replicate the flash_vars_needed to each event based on
+    # that event's event_parent_flash_id
+    fl_df_idx = fl_df.set_index('flash_id')
+    for fl_var in flash_vars_needed:
+        ev_df[fl_var] = fl_df_idx[fl_var].loc[ev_df['event_parent_flash_id']]
+
+    ev_gb = ev_df.groupby('event_pixel_id')
+
+
+
 
     # Filter out pixel coordinates that aren't needed for this grid.
     all_px_vars = 'event_t_px', 'event_z_px', 'event_y_px', 'event_x_px'
@@ -194,8 +218,66 @@ def events_to_grid(ev_gb, dsg, grid_spatial_coords=['grid_time',
     px_source_vars = tuple(pv for pv, g in
             zip(all_pixel_source_vars, grid_spatial_coords) if g is not None)
 
+    # number of target grid cells to be filled
     n_lutevents = len(ev_gb.groups)
 
+
+
+    # ===== New approach =====
+
+    # Code that generates ev_gb (flash_sort.py) should filter out the small
+    # flashes instead of doing so within the gb. Write a new utility function
+    # to filter the whole dataset
+    #    # should prune out small flashes, and associated events first.
+    #    all_flash_ids = np.unique(ds.event_parent_flash_id)
+    #    big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
+    #    big_flash_ids = ds.flash_id[big_flash_mask]
+    #    filtered_flash_ids = list(set(all_flash_ids.data) & set(big_flash_ids.data))
+    #    flash_count = len(filtered_flash_ids)
+
+    pixel_id_suffix='event_pixel_id'
+    px_id_names = [sv + '_parent_' + pixel_id_suffix for sv in px_source_vars]
+    # Given a groupby over globally unique pixel IDs, the IDs along each
+    # dimension should also be identical for each point, so that we can
+    # select the first point only.
+    #         for sv in px_id_names:
+    #             unq_ids = np.unique(ds[sv])
+    #             if len(unq_ids) != 1:
+    #                 print(unq_ids)
+    #                 print(ds)
+    first_points = ev_gb.first()
+    px_coord_ids = tuple(first_points[sv] for sv in px_id_names)
+
+
+    n_events = ev_gb.size()
+
+    sum_ev_df = ev_gb[['event_power']].sum()
+    mean_ev_df = ev_gb[['event_chi2', 'event_stations']].mean()
+
+    # to assign to final dataset
+    total_power = sum_ev_df['event_power']
+    mean_stations = mean_ev_df['event_stations']
+    mean_chi2 = mean_ev_df['event_chi2']
+
+
+    unq_fl_this_px = ev_gb['event_parent_flash_id'].unique()
+    flash_count = unq_fl_this_px.count()
+
+    if flash_count > 0:
+        ds_fl = ds.set_index({'number_of_flashes':'flash_id'})
+        # use this to filter out coresponding events using eventparentflashid?
+        ds_fl = ds_fl.loc[{'number_of_flashes':filtered_flash_ids}]
+        flash_mean_area = ds_fl.flash_area.mean() #same method as fl properties
+        flash_std_area = ds_fl.flash_area.std() #same method as fl properties
+        flash_min_area = ds_fl.flash_area.min() #same method as fl properties
+    else:
+        flash_mean_area = np.nan
+        flash_std_area = np.nan
+        flash_min_area = np.nan
+
+    # ===== End new approach =====
+
+    # ===== Old approach =====
     # Create the dtype matching the sequence of data values that
     # wil be received from the iterator.
     # Unique grid box id
@@ -223,8 +305,11 @@ def events_to_grid(ev_gb, dsg, grid_spatial_coords=['grid_time',
         # need to index on the raw numpy array (.data) so we can use direct integer indexing
         # somehow we could probably use xarray's built-in indexing...
         dsg[var].data[sel] = agg[var]
+
+    # ===== End old approach =====
     return dsg
 
+@profile
 def events_grid_iter(ev_gb, min_points_per_flash,
                      source_vars,
                      pixel_id_suffix='event_pixel_id',
@@ -243,11 +328,12 @@ def events_grid_iter(ev_gb, min_points_per_flash,
 #                 print(unq_ids)
 #                 print(ds)
         px_coord_ids = tuple(ds[sv][0] for sv in px_id_names)
-        n_events = ds.dims['number_of_events']
-        total_power = ds.event_power.sum()
-        mean_stations = ds.event_stations.mean()
-        mean_chi2 = ds.event_chi2.mean()
+        n_events = ds.dims['number_of_events'] #same method as fl properties
+        total_power = ds.event_power.sum() #same method as fl properties
+        mean_stations = ds.event_stations.mean() #same method as fl properties
+        mean_chi2 = ds.event_chi2.mean() #same method as fl properties
 
+        # should prune out small flashes, and associated events first.
         all_flash_ids = np.unique(ds.event_parent_flash_id)
         big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
         big_flash_ids = ds.flash_id[big_flash_mask]
@@ -256,10 +342,11 @@ def events_grid_iter(ev_gb, min_points_per_flash,
 
         if flash_count > 0:
             ds_fl = ds.set_index({'number_of_flashes':'flash_id'})
+            # use this to filter out coresponding events using eventparentflashid?
             ds_fl = ds_fl.loc[{'number_of_flashes':filtered_flash_ids}]
-            flash_mean_area = ds_fl.flash_area.mean()
-            flash_std_area = ds_fl.flash_area.std()
-            flash_min_area = ds_fl.flash_area.min()
+            flash_mean_area = ds_fl.flash_area.mean() #same method as fl properties
+            flash_std_area = ds_fl.flash_area.std() #same method as fl properties
+            flash_min_area = ds_fl.flash_area.min() #same method as fl properties
         else:
             flash_mean_area = np.nan
             flash_std_area = np.nan
