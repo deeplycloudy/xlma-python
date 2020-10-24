@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 import xarray as xr
 
@@ -175,9 +176,7 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                         'grid_altitude', 'grid_latitude', 'grid_longitude'],
                    event_spatial_vars = ('event_altitude', 'event_latitude',
                         'event_longitude',),
-                   to_grid = ('event_count', 'event_total_power',
-                             'flash_extent_density', 'average_flash_area',
-                             'stdev_flash_area', 'minimum_flash_area'),
+                   pixel_id_var='event_pixel_id',
                    min_points_per_flash=3):
     """ dataset after reduction and assignment of grid indexes
 
@@ -186,30 +185,6 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     coordinates is not needed, set it to None.
     """
 
-    event_vars_needed = ['event_power', 'event_chi2', 'event_stations',
-        'event_id', 'event_parent_flash_id', 'event_time',]
-    event_vars_needed += list(event_spatial_vars)
-    ev_df = ds[event_vars_needed].to_dataframe()
-
-
-    flash_vars_needed = ['flash_id', 'flash_area',]
-    fl_df = ds[flash_vars_needed].to_dataframe()
-
-
-    replicated_flashes = list(itertools.chain.from_iterable(
-        flash_groups[fid] for fid in flash_ids))
-
-    # Replicate the flash_vars_needed to each event based on
-    # that event's event_parent_flash_id
-    fl_df_idx = fl_df.set_index('flash_id')
-    for fl_var in flash_vars_needed:
-        ev_df[fl_var] = fl_df_idx[fl_var].loc[ev_df['event_parent_flash_id']]
-
-    ev_gb = ev_df.groupby('event_pixel_id')
-
-
-
-
     # Filter out pixel coordinates that aren't needed for this grid.
     all_px_vars = 'event_t_px', 'event_z_px', 'event_y_px', 'event_x_px'
     px_vars = tuple(pv for pv, g in
@@ -217,26 +192,73 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     all_pixel_source_vars = ('event_time',) + event_spatial_vars
     px_source_vars = tuple(pv for pv, g in
             zip(all_pixel_source_vars, grid_spatial_coords) if g is not None)
+    pixel_id_suffix='event_pixel_id'
+    px_id_names = [sv + '_parent_' + pixel_id_suffix for sv in px_source_vars]
 
-    # number of target grid cells to be filled
-    n_lutevents = len(ev_gb.groups)
+    grid_coord_vars = [dsg[c] for c in grid_spatial_coords if c is not None]
 
+    # These variables will be used to calculate values on the grid.
+    event_vars_needed = ['event_power', 'event_chi2', 'event_stations',
+        'event_id', 'event_parent_flash_id', 'event_time',]
+    event_vars_needed += list(event_spatial_vars) + list(px_id_names)
+    event_vars_needed += [pixel_id_var]
 
-
-    # ===== New approach =====
 
     # Code that generates ev_gb (flash_sort.py) should filter out the small
     # flashes instead of doing so within the gb. Write a new utility function
     # to filter the whole dataset
-    #    # should prune out small flashes, and associated events first.
-    #    all_flash_ids = np.unique(ds.event_parent_flash_id)
-    #    big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
-    #    big_flash_ids = ds.flash_id[big_flash_mask]
-    #    filtered_flash_ids = list(set(all_flash_ids.data) & set(big_flash_ids.data))
-    #    flash_count = len(filtered_flash_ids)
+    # should prune out small flashes, and associated events first. Also, for some reason there are large chi2 events still in the dataset that are associated with flashes - e.g., flash 2 in the test dataset.
+    # all_flash_ids = np.unique(ds.event_parent_flash_id)
+    # big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
+    # big_flash_ids = ds.flash_id[big_flash_mask]
+    # filtered_flash_ids = list(set(all_flash_ids.data) & set(big_flash_ids.data))
+    # flash_count = len(filtered_flash_ids)
+    # print("filtered_flash_ids")
+    # print(filtered_flash_ids)
+    # print('---')
 
-    pixel_id_suffix='event_pixel_id'
-    px_id_names = [sv + '_parent_' + pixel_id_suffix for sv in px_source_vars]
+    # === Convert to Pandas since xarray's groupby is slow. ====
+    # Open issue in xarray as of Oct2020.
+
+    # events must be time sorted because we want to later drop duplicates
+    # and keep the first event in each pixel in each flash.
+    ev_df = ds[event_vars_needed].to_dataframe().sort_values(by=['event_time'])
+
+    flash_vars_needed = ['flash_id', 'flash_area',]
+    fl_df = ds[flash_vars_needed].to_dataframe()
+
+
+    # ===== Summarize data at each grid box: approach =====
+    # Steps are:
+    # 1. Replicate flash data to each event in the flash -> ev_df[fl_var] = ...
+    # 2. At each pixel, keep one event for each flash - we choose the first
+    #    event. These are the flash extent density-type quantities.
+    # 3. Group by event grid box (event_pixel_id) -> ev_gb
+    # 4. Summarize properties of all events in each pixel, regardless of flash.
+    #    These are the event density-type quantities
+
+
+    # Step 1.
+    # Replicate the flash_vars_needed to each event based on
+    # that event's event_parent_flash_id
+    fl_df_idx = fl_df.set_index('flash_id')
+    ev_df_fl_idx = ev_df.set_index('event_parent_flash_id')
+    flash_vars_needed.remove('flash_id')
+    for fl_var in flash_vars_needed:
+        ev_df_fl_idx[fl_var] = fl_df_idx[fl_var]
+    ev_df = ev_df_fl_idx.reset_index().set_index('event_id')
+
+    # Step 2.
+    first_event_df = ev_df.drop_duplicates(
+                        ['event_parent_flash_id'] + list(px_id_names),
+                        keep='first').groupby('event_pixel_id')
+    n_flashes = first_event_df.size()
+    areas_this_pixel = first_event_df['flash_area']
+    fl_mean_area = areas_this_pixel.mean()
+    fl_std_area = areas_this_pixel.std()
+    fl_min_area = areas_this_pixel.min()
+
+    # Get the grid box for each pixel using the first event in each grid box.
     # Given a groupby over globally unique pixel IDs, the IDs along each
     # dimension should also be identical for each point, so that we can
     # select the first point only.
@@ -245,116 +267,63 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     #             if len(unq_ids) != 1:
     #                 print(unq_ids)
     #                 print(ds)
-    first_points = ev_gb.first()
-    px_coord_ids = tuple(first_points[sv] for sv in px_id_names)
+    fl_px_coord_ids = tuple(first_event_df[sv].first() for sv in px_id_names)
+    # # Assign flash variables to the grid
+    # sel = tuple(agg[pv] for pv in px_vars)
+    # for var in to_grid:
+    #     dsg[var] = xr.DataArray(coords=grid_coord_vars)
+    #     # somehow we could probably use xarray's built-in indexing...
+    #     dsg[var].data[sel] = agg[var]
 
+    sel = fl_px_coord_ids
+    for var, var_data in [('flash_extent_density', n_flashes),
+                          ('average_flash_area', fl_mean_area),
+                          ('stdev_flash_area', fl_std_area),
+                          ('minimum_flash_area', fl_min_area),
+                         ]:
+        dsg[var] = xr.DataArray(coords=grid_coord_vars)
+        # need to index on the raw numpy array (.data)
+        # so we can use direct integer indexing
+        dsg[var].data[sel] = var_data
 
+    # Step 3.
+    ev_gb = ev_df.groupby('event_pixel_id')
+    # number of target grid cells to be filled - this is actually pretty slow!
+    # n_occupied_pixels = len(ev_gb.groups)
+
+    # Get the grid box for each pixel using the first event in each grid box.
+    # Given a groupby over globally unique pixel IDs, the IDs along each
+    # dimension should also be identical for each point, so that we can
+    # select the first point only.
+    #         for sv in px_id_names:
+    #             unq_ids = np.unique(ds[sv])
+    #             if len(unq_ids) != 1:
+    #                 print(unq_ids)
+    #                 print(ds)
+    # first_points = ev_gb
+    ev_px_coord_ids = tuple(ev_gb[sv].first() for sv in px_id_names)
+
+    # Step 4.
     n_events = ev_gb.size()
-
     sum_ev_df = ev_gb[['event_power']].sum()
-    mean_ev_df = ev_gb[['event_chi2', 'event_stations']].mean()
+    # mean_ev_df = ev_gb[['event_chi2', 'event_stations']].mean()
 
     # to assign to final dataset
-    total_power = sum_ev_df['event_power']
-    mean_stations = mean_ev_df['event_stations']
-    mean_chi2 = mean_ev_df['event_chi2']
+    ev_total_power = sum_ev_df['event_power']
+    # ev_mean_stations = mean_ev_df['event_stations']
+    # ev_mean_chi2 = mean_ev_df['event_chi2']
 
+    # Handled by n_flashes above. Should be the same!
+    # unq_fl_this_px = ev_gb['event_parent_flash_id'].unique()
+    # flash_count = unq_fl_this_px.count()
 
-    unq_fl_this_px = ev_gb['event_parent_flash_id'].unique()
-    flash_count = unq_fl_this_px.count()
+    sel = ev_px_coord_ids
+    for var, var_data in [('event_count', n_events),
+                          ('event_total_power', ev_total_power),
+                         ]:
+        dsg[var] = xr.DataArray(coords=grid_coord_vars)
+        # need to index on the raw numpy array (.data)
+        # so we can use direct integer indexing
+        dsg[var].data[sel] = var_data
 
-    if flash_count > 0:
-        ds_fl = ds.set_index({'number_of_flashes':'flash_id'})
-        # use this to filter out coresponding events using eventparentflashid?
-        ds_fl = ds_fl.loc[{'number_of_flashes':filtered_flash_ids}]
-        flash_mean_area = ds_fl.flash_area.mean() #same method as fl properties
-        flash_std_area = ds_fl.flash_area.std() #same method as fl properties
-        flash_min_area = ds_fl.flash_area.min() #same method as fl properties
-    else:
-        flash_mean_area = np.nan
-        flash_std_area = np.nan
-        flash_min_area = np.nan
-
-    # ===== End new approach =====
-
-    # ===== Old approach =====
-    # Create the dtype matching the sequence of data values that
-    # wil be received from the iterator.
-    # Unique grid box id
-    event_px_dtype  = [('event_px', 'u8'),]
-    # Pixel ID along each dimension of the grid
-    event_px_dtype += [(px_name, 'u8') for px_name in px_vars]
-    # Representative values at that grid box
-    event_px_dtype += [('event_count', 'u8'),
-                       ('flash_extent_density', 'u8'),
-                       ('average_flash_area', 'f8'),
-                       ('stdev_flash_area', 'f8'),
-                       ('minimum_flash_area', 'f8'),
-                       ('event_total_power','f8'),
-                       ('event_mean_stations', 'f4'),
-                       ('event_mean_chi2', 'f4'),
-                      ]
-
-    ev_iter = events_grid_iter(ev_gb, min_points_per_flash,px_source_vars, )
-    agg = np.fromiter(ev_iter, dtype=event_px_dtype, count=n_lutevents, )
-    coord_vars = [dsg[c] for c in grid_spatial_coords if c is not None]
-
-    sel = tuple(agg[pv] for pv in px_vars)
-    for var in to_grid:
-        dsg[var] = xr.DataArray(coords=coord_vars)
-        # need to index on the raw numpy array (.data) so we can use direct integer indexing
-        # somehow we could probably use xarray's built-in indexing...
-        dsg[var].data[sel] = agg[var]
-
-    # ===== End old approach =====
     return dsg
-
-@profile
-def events_grid_iter(ev_gb, min_points_per_flash,
-                     source_vars,
-                     pixel_id_suffix='event_pixel_id',
-                    ):
-    """ spatial_vars can be overridden for gridding to projection coordinates
-    with some other name
-    """
-    px_id_names = [sv + '_parent_' + pixel_id_suffix for sv in source_vars]
-    for event_pixel_id, ds in ev_gb:
-        # Given a groupby over globally unique pixel IDs, the IDs along each
-        # dimension should also be identical for each point, so that we can
-        # select the first point only.
-#         for sv in px_id_names:
-#             unq_ids = np.unique(ds[sv])
-#             if len(unq_ids) != 1:
-#                 print(unq_ids)
-#                 print(ds)
-        px_coord_ids = tuple(ds[sv][0] for sv in px_id_names)
-        n_events = ds.dims['number_of_events'] #same method as fl properties
-        total_power = ds.event_power.sum() #same method as fl properties
-        mean_stations = ds.event_stations.mean() #same method as fl properties
-        mean_chi2 = ds.event_chi2.mean() #same method as fl properties
-
-        # should prune out small flashes, and associated events first.
-        all_flash_ids = np.unique(ds.event_parent_flash_id)
-        big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
-        big_flash_ids = ds.flash_id[big_flash_mask]
-        filtered_flash_ids = list(set(all_flash_ids.data) & set(big_flash_ids.data))
-        flash_count = len(filtered_flash_ids)
-
-        if flash_count > 0:
-            ds_fl = ds.set_index({'number_of_flashes':'flash_id'})
-            # use this to filter out coresponding events using eventparentflashid?
-            ds_fl = ds_fl.loc[{'number_of_flashes':filtered_flash_ids}]
-            flash_mean_area = ds_fl.flash_area.mean() #same method as fl properties
-            flash_std_area = ds_fl.flash_area.std() #same method as fl properties
-            flash_min_area = ds_fl.flash_area.min() #same method as fl properties
-        else:
-            flash_mean_area = np.nan
-            flash_std_area = np.nan
-            flash_min_area = np.nan
-
-        out = (event_pixel_id,)
-        out += px_coord_ids
-        out += (n_events, flash_count, flash_mean_area, flash_std_area, flash_min_area,
-                total_power, mean_stations, mean_chi2)
-        yield out
-
