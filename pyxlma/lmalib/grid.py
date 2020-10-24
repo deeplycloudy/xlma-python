@@ -171,7 +171,6 @@ def assign_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
 
     return ds #, group
 
-@profile
 def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                         'grid_altitude', 'grid_latitude', 'grid_longitude'],
                    event_spatial_vars = ('event_altitude', 'event_latitude',
