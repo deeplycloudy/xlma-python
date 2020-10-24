@@ -195,8 +195,8 @@ def flash_stats(ds):
     ds['flash_init_altitude'][first_flidx] = first_event_df['event_altitude']
     ds['flash_time_start'][first_flidx] = first_event_df['event_time']
     ds['flash_time_end'][last_flidx] = last_event_df['event_time']
-    ds['flash_area'][event_area.index] = event_area.values
-    ds['flash_volume'][event_volume.index] = event_volume.values
+    ds['flash_area'][event_area.index] = event_area.values/1.0e6
+    ds['flash_volume'][event_volume.index] = event_volume.values/1.0e9
     ds['flash_power'][sum_flidx] = sum_event_df['event_power']
 
     # recreate flash_id variable

@@ -280,7 +280,7 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                           ('stdev_flash_area', fl_std_area),
                           ('minimum_flash_area', fl_min_area),
                          ]:
-        dsg[var] = xr.DataArray(coords=grid_coord_vars)
+        dsg[var] = xr.DataArray(np.nan, coords=grid_coord_vars)
         # need to index on the raw numpy array (.data)
         # so we can use direct integer indexing
         dsg[var].data[sel] = var_data
