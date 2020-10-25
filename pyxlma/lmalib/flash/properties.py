@@ -3,6 +3,7 @@ import xarray as xr
 from scipy.spatial import Delaunay, ConvexHull
 from scipy.special import factorial
 from scipy.spatial.qhull import QhullError
+from pyxlma.lmalib.traversal import OneToManyTraversal
 
 def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
     Re = 6378.137e3           #Earth's radius in m
@@ -194,8 +195,8 @@ def flash_stats(ds):
     ds['flash_init_altitude'][first_flidx] = first_event_df['event_altitude']
     ds['flash_time_start'][first_flidx] = first_event_df['event_time']
     ds['flash_time_end'][last_flidx] = last_event_df['event_time']
-    ds['flash_area'][event_area.index] = event_area.values
-    ds['flash_volume'][event_volume.index] = event_volume.values
+    ds['flash_area'][event_area.index] = event_area.values/1.0e6
+    ds['flash_volume'][event_volume.index] = event_volume.values/1.0e9
     ds['flash_power'][sum_flidx] = sum_event_df['event_power']
 
     # recreate flash_id variable
@@ -204,3 +205,27 @@ def flash_stats(ds):
     ds['flash_id']=ds['number_of_flashes']
 
     return ds
+
+def filter_flashes(ds, **kwargs):
+    """ each kwarg is a flash variable name, with tuple of minimum and maximum
+        values for that kwarg. min and max are inclusive (<=, >=). If either
+        end of the range can be None to skip it.
+
+        Also removes events not associated with any flashes.
+    """
+    # keep all points
+    good = np.ones(ds.flash_id.shape, dtype=bool)
+    print("Starting flash count: ", good.sum())
+    for v, (vmin, vmax) in kwargs.items():
+        if vmin is not None:
+            good &= (ds[v] >= vmin).data
+            print("Flashes left after min for ", v, ": ", good.sum())
+        if vmax is not None:
+            good &= (ds[v] <= vmax).data
+            print("Flashes left after max for ", v, ": ", good.sum())
+
+    flash_subset = ds[{'number_of_flashes':good}]
+    new_flash_ids = list(set(flash_subset.flash_id.data))
+    tree = OneToManyTraversal(ds, ('flash_id', 'event_id'),
+                                  ('event_parent_flash_id',))
+    return tree.reduce_to_entities('flash_id', new_flash_ids)
