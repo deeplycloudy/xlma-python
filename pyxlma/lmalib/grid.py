@@ -202,20 +202,6 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     event_vars_needed += list(event_spatial_vars) + list(px_id_names)
     event_vars_needed += [pixel_id_var]
 
-
-    # Code that generates ev_gb (flash_sort.py) should filter out the small
-    # flashes instead of doing so within the gb. Write a new utility function
-    # to filter the whole dataset
-    # should prune out small flashes, and associated events first. Also, for some reason there are large chi2 events still in the dataset that are associated with flashes - e.g., flash 2 in the test dataset.
-    # all_flash_ids = np.unique(ds.event_parent_flash_id)
-    # big_flash_mask = (ds.flash_event_count >= min_points_per_flash)
-    # big_flash_ids = ds.flash_id[big_flash_mask]
-    # filtered_flash_ids = list(set(all_flash_ids.data) & set(big_flash_ids.data))
-    # flash_count = len(filtered_flash_ids)
-    # print("filtered_flash_ids")
-    # print(filtered_flash_ids)
-    # print('---')
-
     # === Convert to Pandas since xarray's groupby is slow. ====
     # Open issue in xarray as of Oct2020.
 
@@ -226,7 +212,6 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     flash_vars_needed = ['flash_id', 'flash_area',]
     fl_df = ds[flash_vars_needed].to_dataframe()
 
-
     # ===== Summarize data at each grid box: approach =====
     # Steps are:
     # 1. Replicate flash data to each event in the flash -> ev_df[fl_var] = ...
@@ -235,7 +220,6 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     # 3. Group by event grid box (event_pixel_id) -> ev_gb
     # 4. Summarize properties of all events in each pixel, regardless of flash.
     #    These are the event density-type quantities
-
 
     # Step 1.
     # Replicate the flash_vars_needed to each event based on
