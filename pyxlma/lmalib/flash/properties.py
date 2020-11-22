@@ -38,6 +38,18 @@ def hull_volume(xyz):
     volume=np.sum(np.abs(simplex_volumes))
     return volume, vertices, simplex_volumes
 
+def perturb_vertex(x,y,z,machine_eps=1.0):
+    """ With only a few points, QHull can error on a degenerate first simplex -
+    all points are coplanar to machine precision. Add a random perturbation no
+    greater than machine_eps to the first point in x, y, and z. Rerun QHull
+    with the returned x,y,z arrays.
+    """
+    perturb = 2*machine_eps*np.random.random(size=3)-machine_eps
+    x[0] += perturb[0]
+    y[0] += perturb[1]
+    z[0] += perturb[2]
+    return (x,y,z)
+
 def event_hull_area(x,y,z):
     pointCount = x.shape[0]
     area = 0.0
@@ -57,6 +69,14 @@ def event_hull_area(x,y,z):
             # hull indexing has problems here
             print('Setting area to 0 for flash with points %s, %s'
                             % (x, y))
+        except QhullError:
+            print("Perturbing one source to help triangulation for flash with "
+                  "{0} points".format(x.shape[0]))
+            x,y,z = perturb_vertex(x,y,z)
+            cvh = ConvexHull(np.vstack((x,y)).T)
+            # NOT cvh.area - it is the perimeter in 2D.
+            # cvh.area is the surface area in 3D.
+            area = cvh.volume
     return area
 
 def event_hull_volume(x,y,z):
@@ -68,17 +88,9 @@ def event_hull_volume(x,y,z):
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
         except QhullError:
-            # this can happen with a degenerate first simplex - all points are
-            # coplanar to machine precision. Try again, after adding a tiny amount
-            # to the first point.
             print("Perturbing one source to help triangulation for flash with "
-                  "{0} points".format(flash.pointCount))
-            # we can tolerate perturbing by no more than 1 m
-            machine_eps = 1.0 # np.finfo(x.dtype).eps
-            perturb = 2*machine_eps*np.random.random(size=3)-machine_eps
-            x[0] += perturb[0]
-            y[0] += perturb[1]
-            z[0] += perturb[2]
+                  "{0} points".format(x.shape[0]))
+            x,y,z = perturb_vertex(x,y,z)
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
     return volume
@@ -175,12 +187,12 @@ def flash_stats(ds):
     # could only run on those where point counts meet threshold, instead
     # testing inside the function
     # Index of event_area and event_volume are event_parent_flash_id
-    event_area = fl_gb.apply(lambda df: event_hull_area(df['event_x'],
-                                                        df['event_y'],
-                                                        df['event_z']))
-    event_volume = fl_gb.apply(lambda df: event_hull_volume(df['event_x'],
-                                                            df['event_y'],
-                                                            df['event_z']))
+    event_area = fl_gb.apply(lambda df: event_hull_area(df['event_x'].array,
+                                                        df['event_y'].array,
+                                                        df['event_z'].array))
+    event_volume = fl_gb.apply(lambda df: event_hull_volume(df['event_x'].array,
+                                                            df['event_y'].array,
+                                                            df['event_z'].array))
 
     # set the index for the original dataset's flash dimension to the flash_id
     # and use the event_parent_flash_id from the aggregations above to assign
