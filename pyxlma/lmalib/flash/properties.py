@@ -124,7 +124,6 @@ def event_discharge_energy(z,area):
                        #each flash in the capacitor model
     #Capacitor model:
     w = 4 * ((sigma_crit**2. * d * area.iloc[0])/(2* e)) #The quantity for appears when considering image charges (2*sigma)^2=4sigma^2
-    print(f'area={area.iloc[0]}')
     return(w*eta_c)
 
 
