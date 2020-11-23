@@ -123,7 +123,8 @@ def event_discharge_energy(z,area):
     eta_c      = 0.004 #Scale the energy to depict the fraction of energy neutralized by
                        #each flash in the capacitor model
     #Capacitor model:
-    w = 4 * ((sigma_crit**2. * d * area)/(2* e)) #The quantity for appears when considering image charges (2*sigma)^2=4sigma^2
+    w = 4 * ((sigma_crit**2. * d * area.iloc[0])/(2* e)) #The quantity for appears when considering image charges (2*sigma)^2=4sigma^2
+    print(f'area={area.iloc[0]}')
     return(w*eta_c)
 
 
@@ -225,14 +226,10 @@ def flash_stats(ds):
                                                             df['event_y'],
                                                             df['event_z']))
 
-    #Compute flash discharge energy using parallel plate capacitor: (probably
-    #a better way to get the areas without having to have an embedded function
-    #call?)
+    #Compute flash discharge energy using parallel plate capacitor
     event_energy = fl_gb.apply(lambda df: event_discharge_energy(df['event_z'],
-                                                                 event_hull_area(df['event_x'],
-                                                                                 df['event_y'],
-                                                                                 df['event_z'])
-                                                                ))
+                                                                 event_area[df['event_parent_flash_id']]))
+
 
     # set the index for the original dataset's flash dimension to the flash_id
     # and use the event_parent_flash_id from the aggregations above to assign

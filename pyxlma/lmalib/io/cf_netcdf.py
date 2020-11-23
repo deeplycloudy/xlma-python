@@ -168,7 +168,7 @@ def new_template_dataset():
   'flash_energy':{'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
     'units': 'GJ',
-    'long_name': 'Flash Discharge Energy',
+    'long_name': 'Flash Discharge Energy from a Capacitor',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
     },
     'dtype': 'float32',

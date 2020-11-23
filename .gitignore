@@ -27,8 +27,6 @@ MANIFEST
 .DS_Store
 examples/.DS_Store
 
-#Other gui
-examples/kivy/
 
 
 # PyInstaller

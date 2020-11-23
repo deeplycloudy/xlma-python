@@ -241,7 +241,7 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     fl_mean_area = areas_this_pixel.mean()
     fl_std_area = areas_this_pixel.std()
     fl_min_area = areas_this_pixel.min()
-    fl_mean_energy=areas_this_pixel.mean()
+    fl_mean_energy=energy_this_pixel.mean()
 
     # Get the grid box for each pixel using the first event in each grid box.
     # Given a groupby over globally unique pixel IDs, the IDs along each
