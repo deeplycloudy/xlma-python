@@ -209,7 +209,7 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
     # and keep the first event in each pixel in each flash.
     ev_df = ds[event_vars_needed].to_dataframe().sort_values(by=['event_time'])
 
-    flash_vars_needed = ['flash_id', 'flash_area',]
+    flash_vars_needed = ['flash_id', 'flash_area', 'flash_energy']
     fl_df = ds[flash_vars_needed].to_dataframe()
 
     # ===== Summarize data at each grid box: approach =====
@@ -237,9 +237,11 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                         keep='first').groupby('event_pixel_id')
     n_flashes = first_event_df.size()
     areas_this_pixel = first_event_df['flash_area']
+    energy_this_pixel= first_event_df['flash_energy']
     fl_mean_area = areas_this_pixel.mean()
     fl_std_area = areas_this_pixel.std()
     fl_min_area = areas_this_pixel.min()
+    fl_mean_energy=energy_this_pixel.mean()
 
     # Get the grid box for each pixel using the first event in each grid box.
     # Given a groupby over globally unique pixel IDs, the IDs along each
@@ -263,6 +265,7 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
                           ('average_flash_area', fl_mean_area),
                           ('stdev_flash_area', fl_std_area),
                           ('minimum_flash_area', fl_min_area),
+                          ('average_flash_energy',fl_mean_energy),
                          ]:
         dsg[var] = xr.DataArray(np.nan, coords=grid_coord_vars)
         # need to index on the raw numpy array (.data)

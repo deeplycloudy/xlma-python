@@ -8,9 +8,9 @@ from pyxlma.lmalib.traversal import OneToManyTraversal
 def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
     Re = 6378.137e3           #Earth's radius in m
     latavg, lonavg, altavg = latctr, lonctr, altctr
-    x = Re * (np.radians(lonavg) - np.radians(lon)) * np.cos(np.radians(latavg))
-    y = Re * (np.radians(latavg) - np.radians(lat))
-    z = altavg - alt
+    x = Re * (np.radians(lon) - np.radians(lonavg)) * np.cos(np.radians(latavg))
+    y = Re * (np.radians(lat) - np.radians(latavg))
+    z = alt - altavg
     return x,y,z
 
 def hull_volume(xyz):
@@ -94,6 +94,49 @@ def event_hull_volume(x,y,z):
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
     return volume
+
+
+def rrbe(zinit):
+    """
+    Compute the runway breakeven threshold electric fields given
+    an initiation altitude for a lightning flash assuming a
+    surface breakdown electric field threshold of 281 kVm^-1 [Marshall et al. 2005].
+
+    Returns e_init in kVm^1.
+    """
+    #Compute scaled air density with height.
+    rho_air = 1.208 * np.exp(-(zinit/8.4))
+    e_init  = 232.6*rho_air
+    return(e_init)
+
+def event_discharge_energy(z,area):
+    """
+       Estimate the electrical energy discharged by lightning flashes
+       using a simple capacitor model.
+
+       Note: -) Model assumes plates area defined by convex hull area, and separation
+                between the 73 and 27th percentiles of each flash's vertical source
+                distributions.
+             -) Only the initiation electric field (e_init) between the plates at the height
+                of flash initiation to find the critical charge density (sigma_crit) on the plates,
+                sigma_crit = epsilon * e_init -> epsilon = permitivity of air
+             -) Model considers the ground as a perfect conductor (image charging),
+
+    """
+    #Compute separation between charge plates (d) and critial charge density (sigma_crit):
+    e          = 8.858*1e-12 #[C/Vm] permittivity of air
+    if len(z) <=1: #if only one point exists for a series of altitudes, assume a separation of 0.
+        d = 0
+    else:          #use the percentiles or the two points to compute the separation (d)
+        d          = np.abs(np.percentile(z,73) - np.percentile(z,27))
+    zinit      = z.iloc[0]
+    e_init     = rrbe(zinit*1e-3)*1e3
+    sigma_crit = (e * e_init)
+    eta_c      = 0.004 #Scale the energy to depict the fraction of energy neutralized by
+                       #each flash in the capacitor model
+    #Capacitor model:
+    w = 4 * ((sigma_crit**2. * d * area.iloc[0])/(2* e)) #The quantity for appears when considering image charges (2*sigma)^2=4sigma^2
+    return(w*eta_c)
 
 
 def flash_stats(ds):
@@ -194,6 +237,11 @@ def flash_stats(ds):
                                                             df['event_y'].array,
                                                             df['event_z'].array))
 
+    #Compute flash discharge energy using parallel plate capacitor
+    event_energy = fl_gb.apply(lambda df: event_discharge_energy(df['event_z'],
+                                                                 event_area[df['event_parent_flash_id']]))
+
+
     # set the index for the original dataset's flash dimension to the flash_id
     # and use the event_parent_flash_id from the aggregations above to assign
     # the data for that flash.
@@ -210,6 +258,9 @@ def flash_stats(ds):
     ds['flash_area'][event_area.index] = event_area.values/1.0e6
     ds['flash_volume'][event_volume.index] = event_volume.values/1.0e9
     ds['flash_power'][sum_flidx] = sum_event_df['event_power']
+
+    #Assign to varialbe in dataframe:
+    ds['flash_energy'][event_energy.index] = event_energy.values * 1e-9 #Returns in GJ
 
     # recreate flash_id variable
     ds['flash_duration'] = ds['flash_time_start'] - ds['flash_time_end']
