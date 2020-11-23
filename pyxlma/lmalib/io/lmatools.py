@@ -27,7 +27,9 @@
 # flash_init_*
 
 
-from lmatools.lmaio.LMAarrayFile import LMAdataFile
+from lmatools.io.LMAarrayFile import LMAdataFile
+import datetime as dt
+import numpy as np
 
 class LMAdata(object):
 
