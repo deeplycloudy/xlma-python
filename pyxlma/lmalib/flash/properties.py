@@ -70,8 +70,8 @@ def event_hull_area(x,y,z):
             print('Setting area to 0 for flash with points %s, %s'
                             % (x, y))
         except QhullError:
-            print("Perturbing one source to help triangulation for flash with "
-                  "{0} points".format(x.shape[0]))
+            print("Perturbing one source to help area triangulation for "
+                  "flash with {0} points".format(x.shape[0]))
             x,y,z = perturb_vertex(x,y,z)
             cvh = ConvexHull(np.vstack((x,y)).T)
             # NOT cvh.area - it is the perimeter in 2D.
@@ -88,8 +88,8 @@ def event_hull_volume(x,y,z):
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
         except QhullError:
-            print("Perturbing one source to help triangulation for flash with "
-                  "{0} points".format(x.shape[0]))
+            print("Perturbing one source to help volume triangulation for "
+                  "flash with {0} points".format(x.shape[0]))
             x,y,z = perturb_vertex(x,y,z)
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
                                                                 (x,y,z)).T)
@@ -139,7 +139,17 @@ def event_discharge_energy(z,area):
     return(w*eta_c)
 
 
-def flash_stats(ds):
+def flash_stats(ds, area_func=None, volume_func=None):
+
+    if area_func is None:
+        area_func = lambda df: event_hull_area(df['event_x'].array,
+                                               df['event_y'].array,
+                                               df['event_z'].array)
+    if volume_func is None:
+        volume_func = lambda df: event_hull_area(df['event_x'].array,
+                                               df['event_y'].array,
+                                               df['event_z'].array)
+
     if not('event_x' in ds.variables):
         x,y,z = local_cartesian(ds.event_longitude,
                                 ds.event_latitude,
@@ -230,12 +240,8 @@ def flash_stats(ds):
     # could only run on those where point counts meet threshold, instead
     # testing inside the function
     # Index of event_area and event_volume are event_parent_flash_id
-    event_area = fl_gb.apply(lambda df: event_hull_area(df['event_x'].array,
-                                                        df['event_y'].array,
-                                                        df['event_z'].array))
-    event_volume = fl_gb.apply(lambda df: event_hull_volume(df['event_x'].array,
-                                                            df['event_y'].array,
-                                                            df['event_z'].array))
+    event_area = fl_gb.apply(area_func)
+    event_volume = fl_gb.apply(volume_func)
 
     #Compute flash discharge energy using parallel plate capacitor
     event_energy = fl_gb.apply(lambda df: event_discharge_energy(df['event_z'],
@@ -263,7 +269,7 @@ def flash_stats(ds):
     ds['flash_energy'][event_energy.index] = event_energy.values * 1e-9 #Returns in GJ
 
     # recreate flash_id variable
-    ds['flash_duration'] = ds['flash_time_start'] - ds['flash_time_end']
+    ds['flash_duration'] = ds['flash_time_end'] - ds['flash_time_start']
     ds.reset_index('number_of_flashes')
     ds['flash_id']=ds['number_of_flashes']
 
@@ -274,21 +280,25 @@ def filter_flashes(ds, **kwargs):
         values for that kwarg. min and max are inclusive (<=, >=). If either
         end of the range can be None to skip it.
 
-        Also removes events not associated with any flashes.
+        Also removes events not associated with any flashes if prune=True (default)
     """
+    prune = kwargs.pop('prune', True)
     # keep all points
     good = np.ones(ds.flash_id.shape, dtype=bool)
-    print("Starting flash count: ", good.sum())
+    # print("Starting flash count: ", good.sum())
     for v, (vmin, vmax) in kwargs.items():
         if vmin is not None:
             good &= (ds[v] >= vmin).data
-            print("Flashes left after min for ", v, ": ", good.sum())
+            # print("Flashes left after min for ", v, ": ", good.sum())
         if vmax is not None:
             good &= (ds[v] <= vmax).data
-            print("Flashes left after max for ", v, ": ", good.sum())
+            # print("Flashes left after max for ", v, ": ", good.sum())
 
     flash_subset = ds[{'number_of_flashes':good}]
-    new_flash_ids = list(set(flash_subset.flash_id.data))
-    tree = OneToManyTraversal(ds, ('flash_id', 'event_id'),
-                                  ('event_parent_flash_id',))
-    return tree.reduce_to_entities('flash_id', new_flash_ids)
+    if prune:
+        new_flash_ids = list(set(flash_subset.flash_id.data))
+        tree = OneToManyTraversal(ds, ('flash_id', 'event_id'),
+                                      ('event_parent_flash_id',))
+        return tree.reduce_to_entities('flash_id', new_flash_ids)
+    else:
+        return flash_subset
