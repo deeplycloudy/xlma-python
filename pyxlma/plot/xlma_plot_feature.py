@@ -3,18 +3,20 @@ import numpy as np
 import matplotlib.dates as md
 
 
-def subset(lon_data, lat_data, alt_data, time_data, chi_data,
-           xlim, ylim, zlim, tlim, xchi):
+def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
+           xlim, ylim, zlim, tlim, xchi, stationmin):
     """
     Generate a subset of x,y,z,t of sources based on maximum
     reduced chi squared and given x,y,z,t bounds
 
     Returns: longitude, latitude, altitude, time and boolean arrays
     """
-    selection = (alt_data>zlim[0])&(alt_data<zlim[1])&(
-                 lon_data>xlim[0])&(lon_data<xlim[1])&(
-                 lat_data>ylim[0])&(lat_data<ylim[1])&(
-                 time_data>tlim[0])&(time_data<tlim[1])&(chi_data<=xchi)
+    selection = ((alt_data>zlim[0])&(alt_data<zlim[1])&
+                 (lon_data>xlim[0])&(lon_data<xlim[1])&
+                 (lat_data>ylim[0])&(lat_data<ylim[1])&
+                 (time_data>tlim[0])&(time_data<tlim[1])&
+                 (chi_data<=xchi)&(station_data>=stationmin)
+                 )
 
     alt_data = alt_data[selection]
     lon_data = lon_data[selection]
@@ -37,7 +39,7 @@ def color_by_time(time_array, tlim):
         ldf.append(df.total_seconds())
     c = np.array(ldf)
     vmin = 0
-    
+
     return vmin, vmax, c
 
 
@@ -61,21 +63,21 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     and defined plotting colormaps and ranges
     """
     bk_plot.ax_plan.scatter(lon_data, lat_data,
-                            c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap, 
+                            c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                             s=plot_s,marker='o', edgecolors='none')
-    bk_plot.ax_th.scatter(time_data, alt_data, 
-                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap, 
+    bk_plot.ax_th.scatter(time_data, alt_data,
+                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                           s=plot_s,marker='o', edgecolors='none')
-    bk_plot.ax_lon.scatter(lon_data, alt_data, 
-                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap, 
+    bk_plot.ax_lon.scatter(lon_data, alt_data,
+                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                           s=plot_s,marker='o', edgecolors='none')
     bk_plot.ax_lat.scatter(alt_data, lat_data,
-                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap, 
+                          c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                           s=plot_s,marker='o', edgecolors='none')
     bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20))
     plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
-             fontsize='small', horizontalalignment='left', 
+             fontsize='small', horizontalalignment='left',
              verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
 
 
@@ -83,7 +85,7 @@ def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
                 alt_data, plot_cmap):
     """
-    Plot gridded fields on an existing bk_plot given x,y,z,t grids and 
+    Plot gridded fields on an existing bk_plot given x,y,z,t grids and
     respective grid edges
     """
     alt_lon[alt_lon==0]=np.nan
@@ -97,5 +99,5 @@ def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
     bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20))
     plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
-             fontsize='small', horizontalalignment='left', 
+             fontsize='small', horizontalalignment='left',
              verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
