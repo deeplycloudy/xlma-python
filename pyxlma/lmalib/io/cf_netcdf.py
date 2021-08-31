@@ -99,7 +99,7 @@ def new_template_dataset():
    'dtype': 'uint64',
    },
   'flash_time_start': {'dims': ('number_of_flashes',),
-   'attrs': {'_FillValue': np.nan,
+   'attrs': {'_FillValue': -999,
     'standard_name': 'time',
     'long_name': 'Start time of flash',
     # xarray handles the units for us since we have a datetime dtype
@@ -109,7 +109,7 @@ def new_template_dataset():
    },
   # must have either flash_time_end or flash_duration, or both.
   'flash_time_end': {'dims': ('number_of_flashes',),
-   'attrs': {'_FillValue': np.nan,
+   'attrs': {'_FillValue': -999,
     'standard_name': 'time',
     'long_name': 'End time of flash',
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
@@ -124,7 +124,7 @@ def new_template_dataset():
     'coordinates':'flash_id flash_time_start flash_init_altitude flash_init_latitude flash_init_longitude',
     # 'units': 'seconds'
     },
-   'dtype': 'timedelta64',
+   'dtype': 'timedelta64[ns]',
    },
   'flash_init_latitude': {'dims': ('number_of_flashes',),
    'attrs': {'_FillValue': np.nan,
@@ -252,7 +252,7 @@ def new_template_dataset():
    'dtype': 'float32',
    },
   'event_time': {'dims': ('number_of_events',),
-   'attrs': {'_FillValue': np.nan,
+   'attrs': {'_FillValue': -999,
     'standard_name': 'time',
     'long_name': 'Time of event',
     # xarray handles the units for us since we have a datetime dtype
