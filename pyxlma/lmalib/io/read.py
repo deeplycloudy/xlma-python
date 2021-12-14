@@ -330,10 +330,13 @@ class lmafile(object):
         'Station Count' column containes the total number of contributing
         stations for each source
         """
-        # Read in data
-        lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
-                            header=None,skiprows=self.data_starts+1,error_bad_lines=False)
-        lmad.columns = self.names
+        # Read in data. Catch case where there is no data.
+        try:
+            lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
+                               header=None,skiprows=self.data_starts+1,error_bad_lines=False)
+            lmad.columns = self.names
+        except pd.errors.EmptyDataError:
+            lmad = pd.DataFrame(columns=self.names)
 
         # Convert seconds column to new datetime-formatted column
         lmad.insert(1,'Datetime',pd.to_timedelta(lmad['time (UT sec of day)'], unit='s')+self.startday)
