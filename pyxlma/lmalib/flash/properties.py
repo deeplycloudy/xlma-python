@@ -53,7 +53,7 @@ def perturb_vertex(x,y,z,machine_eps=1.0):
 def event_hull_area(x,y,z):
     pointCount = x.shape[0]
     area = 0.0
-    if pointCount > 2:
+    if pointCount > 3:
         try:
             # find the convex hull and calculate its area
             cvh = ConvexHull(np.vstack((x,y)).T)
@@ -82,7 +82,7 @@ def event_hull_area(x,y,z):
 def event_hull_volume(x,y,z):
     pointCount = x.shape[0]
     volume = 0.0
-    if pointCount > 3:
+    if pointCount > 4:
         # Need four points to make at least one tetrahedron.
         try:
             volume, vertices, simplex_volumes = hull_volume(np.vstack(
