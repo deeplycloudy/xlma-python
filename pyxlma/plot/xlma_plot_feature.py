@@ -57,23 +57,23 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
-                  plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c):
+                  plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, edge_color='face', edge_width=0):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
     and defined plotting colormaps and ranges
     """
     bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                            s=plot_s,marker='o', edgecolors='none')
+                            s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
     bk_plot.ax_th.scatter(time_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', edgecolors='none')
+                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
     bk_plot.ax_lon.scatter(lon_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', edgecolors='none')
+                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
     bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', edgecolors='none')
+                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
     bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20))
     plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
