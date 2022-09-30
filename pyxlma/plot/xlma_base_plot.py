@@ -108,6 +108,12 @@ class BlankPlot(object):
                 self.stime.year, self.stime.month, self.stime.day)
         self.plot(**kwargs)
 
+    def set_ax_plan_labels(self):
+        self.ax_plan.set_xticks(self.ax_lon.get_xticks())
+        self.ax_plan.set_yticks(self.ax_lat.get_yticks())
+        if self.bkgmap==True:
+            self.ax_plan.set_extent([self.xlim[0], self.xlim[1],
+                                     self.ylim[0], self.ylim[1]])
 
     def plot(self, **kwargs):
         self.fig = plt.figure(figsize=(8.5, 11))
@@ -187,12 +193,7 @@ class BlankPlot(object):
         self.ax_plan.minorticks_on()
         self.ax_plan.xaxis.set_major_formatter(self.majorFormatter)
         self.ax_plan.yaxis.set_major_formatter(self.majorFormatter)
-        self.ax_plan.set_xticks(self.ax_lon.get_xticks())
-        self.ax_plan.set_yticks(self.ax_lat.get_yticks())
-        if self.bkgmap==True:
-            self.ax_plan.set_extent([self.xlim[0], self.xlim[1],
-                                     self.ylim[0], self.ylim[1]])
-
+        self.set_ax_plan_labels()
 
 def subplot_labels(plot):
     """

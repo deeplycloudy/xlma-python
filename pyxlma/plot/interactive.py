@@ -127,10 +127,18 @@ class InteractiveLMAPlot(object):
 
     def __init__(self, ds, chimax=1.0, stationmin=6,
             plot_cmap='plasma', point_size=5, clon=-101.5, clat=33.5,
-            ):
+            xlim=None, ylim=None, zlim=None, tlim=None):
         """ lma_plot is as returned by pyxlma's BlankPlot
+
+            xlim, ylim, zlim, and tlim are initial limits to use with the dataset;
+            otherwise, the limits are taken from the limits of the data in ds.
         """
-        xlim, ylim, zlim, tlim = event_space_time_limits(ds)
+        xlim_ds, ylim_ds, zlim_ds, tlim_ds = event_space_time_limits(ds)
+
+        if xlim is None: xlim = xlim_ds
+        if ylim is None: ylim = ylim_ds
+        if zlim is None: zlim = zlim_ds
+        if tlim is None: tlim = tlim_ds
         # tlim = pd.to_datetime('2022-06-04T22:15'), pd.to_datetime('2022-06-04T22:20')
 
         self.stationmin = stationmin
@@ -310,7 +318,6 @@ class InteractiveLMAPlot(object):
 
         # Zoom all the axes to the same limits. Don't emit a callback event,
         # so that we don't have an infinite loop.
-        self.lma_plot.ax_plan.axis(xlim+ylim, emit=False)
         self.lma_plot.ax_lon.axis(xlim+zlim, emit=False)
         self.lma_plot.ax_lat.axis(zlim+ylim, emit=False)
         self.lma_plot.ax_th.axis(tlim+zlim, emit=False)
@@ -319,9 +326,24 @@ class InteractiveLMAPlot(object):
         # print(self.lma_plot.ax_lon.get_position())
 
         # Refresh the ticks from the non-Cartopy plot that knows how to
+        # generate ticks. If this goes after the ax_plan.axis() below,
+        # it causes the proportion of the Cartopy axes frame
+        # to change within the figure.
+        self.lma_plot.ax_plan.set_xticks(self.lma_plot.ax_lon.get_xticks())
+        self.lma_plot.ax_plan.set_yticks(self.lma_plot.ax_lat.get_yticks())
+
+        self.lma_plot.ax_plan.axis(xlim+ylim, emit=False)
+
+
+
+
+        # Refresh the ticks from the non-Cartopy plot that knows how to
         # generate ticks.
         # self.lma_plot.ax_plan.set_xticks(self.lma_plot.ax_lon.get_xticks())
         # self.lma_plot.ax_plan.set_yticks(self.lma_plot.ax_lat.get_yticks())
+        # This line does runs the above two lines, and then a set_extent, and
+        # promptly crashes the iPy kernel.
+        # self.lma_plot.set_ax_plan_labels()
 
 
 
