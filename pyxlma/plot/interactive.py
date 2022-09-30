@@ -281,6 +281,8 @@ class InteractiveLMAPlot(object):
                 a.remove()
             # reset the list of data artists.
             self.data_artists = []
+            self.lma_plot.ax_th.set_title(tstring)
+
 
         # Add a view of where the subset is
         # Not plotting this because removing the inset_ax created by this funcion does not
