@@ -6,12 +6,11 @@ XLMA is a venerable IDL GUI program that diplays VHF Lightning Mapping Array dat
 Please use the issues tracker to discuss ideas and pull requests to contribute examples.
 
 # Installation
-Clone this repostiory, switch to the development branch, and install.
+Clone this repostiory install with pip.
 
 ```
 git clone https://github.com/deeplycloudy/xlma-python.git
 cd xlma-python
-git checkout cf-lma_format
 pip install -e .
 ```
 
