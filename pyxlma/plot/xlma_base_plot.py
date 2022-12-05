@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import datetime as dt
 from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
+from matplotlib.dates import AutoDateLocator
 
 import cartopy
 import cartopy.crs as ccrs
@@ -142,6 +143,13 @@ class BlankPlot(object):
             tfmt = '%H:%M:%S000'
         self.ax_th.set_xlim(self.tlim[0], self.tlim[1])
         self.ax_th.xaxis.set_major_formatter(FractionalSecondFormatter(self.ax_th))
+        # Importing pandas results in it overriding Matplotlib default AutoDateLocator,
+        # which in turn prevents more than one tick displaying for short time intervals.
+        # See this blog entry for details.
+        # https://notebook.community/azjps/matplotlib-tick-formatters/ notebooks/microsecond_precision At small time intervals,
+        # So, restore Matplotlib's AutoDateLocator, which as of version >3.3 correctly
+        # handles smaller time intervals. 3.2 did not!
+        self.ax_th.xaxis.set_major_locator(AutoDateLocator())
 
         # Longitude-Altitue
         self.ax_lon.set_ylabel('Altitude (km MSL)')
