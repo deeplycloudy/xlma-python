@@ -311,7 +311,7 @@ class XlmaPlot(object):
             plt.text(0.30, 0.80, '(c)', fontsize='x-large', weight='bold',
                      horizontalalignment='center', verticalalignment='center',
                      transform=self.ax_hist.transAxes)
-        
+
 
     def plan_view(self):
         if self.data_exists == True:
@@ -398,7 +398,7 @@ class XlmaPlot(object):
             self.inset_size = kwargs['inset_size']
         else:
             self.inset_size = 0.15
-        self.inset = self.fig.add_axes([0.02, 0.01, 0.02+self.inset_size, 
+        self.inset = self.fig.add_axes([0.02, 0.01, 0.02+self.inset_size,
                                                     0.01+self.inset_size],projection=ccrs.PlateCarree())
         if self.data_exists==True:
             if self.readtype == 'lmatools':
@@ -411,7 +411,7 @@ class XlmaPlot(object):
                 lon_data = self.data['event_longitude'][self.cond2].data
                 lat_data = self.data['event_latitude'][self.cond2].data
             self.inset.hist2d(lon_data, lat_data,
-                        bins=[int((self.xlim[1]+self.buffer*2 - self.xlim[0]) / xdiv), 
+                        bins=[int((self.xlim[1]+self.buffer*2 - self.xlim[0]) / xdiv),
                               int((self.ylim[1]+self.buffer*2 - self.ylim[0]) / ydiv)],
                         density=True, cmap=self.cmap,
                         cmin=0.00001)
@@ -421,7 +421,7 @@ class XlmaPlot(object):
                 self.inset.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
             self.inset.add_feature(cfeature.BORDERS)
             self.inset.add_feature(cfeature.STATES.with_scale('10m'))
-            self.inset.set_extent([self.xlim[0]-self.buffer, self.xlim[1]+self.buffer, 
+            self.inset.set_extent([self.xlim[0]-self.buffer, self.xlim[1]+self.buffer,
                                    self.ylim[0]-self.buffer, self.ylim[1]+self.buffer])
         self.inset.plot([self.xlim[0],self.xlim[0],self.xlim[1],self.xlim[1],self.xlim[0]],
                         [self.ylim[0],self.ylim[1],self.ylim[1],self.ylim[0],self.ylim[0]],
