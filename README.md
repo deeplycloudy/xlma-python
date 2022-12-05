@@ -5,6 +5,18 @@ XLMA is a venerable IDL GUI program that diplays VHF Lightning Mapping Array dat
 
 Please use the issues tracker to discuss ideas and pull requests to contribute examples.
 
+# Installation
+Clone this repostiory, switch to the development branch, and install.
+
+```
+git clone https://github.com/deeplycloudy/xlma-python.git
+cd xlma-python
+git checkout cf-lma_format
+pip install -e .
+```
+
+Then, copy the `XLMA_plots.ipynb` notebook to wherever you'd like and start changing files, dates and times to show data from your case of interest. There also a notebook showing how to do flash sorting and save a new NetCDF file with those data.
+
 # Technical architecture
 
 We envision a two-part package that keeps a clean separation between the core data model, analysis, and display. XLMA utilized a large, global `state` structure that stored all data, as well as the current data selection corresponding to the view in the GUI. Analysis then operated on whatever data was in the current selection.

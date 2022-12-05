@@ -13,7 +13,7 @@
 #
 #
 #
-# def to_xarray(filename):
+# def to_dataset(filename):
 #     lmah5 = LMAh5File(filename, min_points=1)
 #     for events, flashes in lmah5.gen_events_flashes()
 #         ev_xr = events_np_to_xarray(events, lmah5.base_date)
@@ -27,7 +27,9 @@
 # flash_init_*
 
 
-from lmatools.lmaio.LMAarrayFile import LMAdataFile
+from lmatools.io.LMAarrayFile import LMAdataFile
+import datetime as dt
+import numpy as np
 
 class LMAdata(object):
 
