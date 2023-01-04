@@ -102,9 +102,23 @@ def dataset(filenames):
             raise
     ds = combine_datasets(lma_data)
     ds = ds.reset_index(('number_of_events', 'number_of_stations'))
-    ds = ds.reset_coords(('number_of_events_', 'number_of_stations_'))
-    ds = ds.rename({'number_of_events_':'event_id',
-                    'number_of_stations_':'station_code'})
+    if 'number_of_events_' in ds.coords:
+        # Older xarray versions appended a trailing underscore. reset_coords then dropped
+        # converted the coordinate variables into regular variables while not touching
+        # the original dimension name, allowing us to rename. In newer versions, the variable
+        # names are never changed at the reset_index step, so the renaming step modifies
+        # the dimension name, too.
+        resetted = ('number_of_events_', 'number_of_stations_')
+        ds = ds.reset_coords(resetted)
+        ds = ds.rename({resetted[0]:'event_id',
+                        resetted[1]:'station_code'})
+    else:
+        # The approach for newer xarray versions requires we explicitly rename only the variables.
+        # The generic "rename" in the block above renames vars, coords, and dims.
+        resetted = ('number_of_events', 'number_of_stations')
+        ds = ds.reset_coords(resetted)
+        ds = ds.rename_vars({resetted[0]:'event_id',
+                        resetted[1]:'station_code'})
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
