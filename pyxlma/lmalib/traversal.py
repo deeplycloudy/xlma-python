@@ -219,7 +219,7 @@ class OneToManyTraversal(object):
         for e_var, p_var in self._descend():
             if prune == True:
                 p_group = self.parent_groups[p_var].groups
-                e_iter = (p_group[eid] for eid in last_entity_ids
+                e_iter = (np.atleast_1d(p_group[eid]) for eid in last_entity_ids
                           if eid in p_group)
                 e_idx = list(itertools.chain.from_iterable(e_iter))
                 if len(e_idx) == 0:
@@ -239,7 +239,7 @@ class OneToManyTraversal(object):
                 # through.
                 prune = True
                 e_group = self.entity_groups[e_var].groups
-                e_iter = (e_group[eid] for eid in entity_ids
+                e_iter = (np.atleast_1d(e_group[eid]) for eid in entity_ids
                           if eid in e_group)
                 e_idx = list(itertools.chain.from_iterable(e_iter))
                 last_entity_ids = entity_ids # == dataset[e_var].data
@@ -263,7 +263,7 @@ class OneToManyTraversal(object):
         for e_var, p_var in self._ascend():
             if (prune == True):
                 e_group = self.entity_groups[e_var].groups
-                e_iter = (e_group[eid] for eid in last_entity_ids
+                e_iter = (np.atleast_1d(e_group[eid]) for eid in last_entity_ids
                           if eid in e_group)
                 e_idx = list(itertools.chain.from_iterable(e_iter))
                 if len(e_idx) == 0:
