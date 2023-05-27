@@ -264,6 +264,14 @@ class InteractiveLMAPlot(object):
         lon_set, lat_set, alt_set, time_set, selection = subset(
                    lon_data, lat_data, alt_data, time_data, chi_data, station_data,
                    xlim, ylim, zlim, tlim_sub, xchi, stationmin)
+        # Retain the current LMA data so that subclasses can access the current LMA
+        # data and compare to other data to be plotted. For instance, to calculate
+        # the offset between the time of the first LMA point and a ground strike point.
+        self.this_lma_lon = lon_set
+        self.this_lma_lat = lat_set
+        self.this_lma_alt = alt_set
+        self.this_lma_time = time_set
+        self.this_lma_sel = selection
 
         # if self.lma_plot is not None:
         #     fig = self.lma_plot.fig
