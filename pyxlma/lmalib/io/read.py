@@ -347,7 +347,7 @@ class lmafile(object):
         # Read in data. Catch case where there is no data.
         try:
             lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
-                               header=None,skiprows=self.data_starts+1,error_bad_lines=False)
+                               header=None,skiprows=self.data_starts+1,on_bad_lines='skip')
             lmad.columns = self.names
         except pd.errors.EmptyDataError:
             lmad = pd.DataFrame(columns=self.names)
