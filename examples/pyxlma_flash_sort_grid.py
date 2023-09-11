@@ -83,7 +83,9 @@ def flash_sort_grid(paths_to_read, output_path):
         combined = combined.swap_dims({'grid_x_edge':'grid_longitude_edge', 'grid_y_edge':'grid_latitude_edge', 'grid_x':'grid_longitude', 'grid_y':'grid_latitude'})
 
         filename = path.basename(paths_to_read[0]).split('_')[0] + '_' + bin_start.item().strftime('%Y%m%d_%H%M') + '00_0600_map' + str(int(grid_h_res*1000)) + 'm.nc'
-        combined.to_netcdf(path.join(output_path, filename))
+        comp = dict(zlib=True, complevel=5)
+        encoding = {var: comp for var in combined.data_vars}
+        combined.to_netcdf(path.join(output_path, filename), encoding=encoding)
         bin_start = bin_start + np.timedelta64(10, 'm')
 
 
