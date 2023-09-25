@@ -79,7 +79,7 @@ def combine_datasets(lma_data):
 
     return ds
 
-def dataset(filenames):
+def dataset(filenames, sort_time=True):
     """ Create an xarray dataset of the type returned by
         pyxlma.lmalib.io.cf_netcdf.new_dataset for each filename in filenames
     """
@@ -119,6 +119,8 @@ def dataset(filenames):
         ds = ds.reset_coords(resetted)
         ds = ds.rename_vars({resetted[0]:'event_id',
                         resetted[1]:'station_code'})
+    if sort_time:
+        ds = ds.sortby('event_time')
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
