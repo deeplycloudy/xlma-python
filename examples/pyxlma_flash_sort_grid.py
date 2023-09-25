@@ -111,6 +111,8 @@ if __name__ == '__main__':
     input_paths = args.input
     if len(input_paths) == 1:
         input_paths = glob.glob(input_paths[0])
+    else:
+        input_paths = sorted(input_paths)
     grid_proj = args.grid_projection
     grid_range = args.horizontal_range
     grid_height = args.vertical_range
