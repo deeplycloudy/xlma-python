@@ -286,6 +286,9 @@ def filter_flashes(ds, **kwargs):
     # keep all points
     good = np.ones(ds.flash_id.shape, dtype=bool)
     # print("Starting flash count: ", good.sum())
+    if 'flash_event_count' in ds.variables:
+        if np.all(ds.flash_event_count == np.iinfo(np.uint64).max):
+            raise ValueError('Before filtering a dataset by flash properties, call flash_stats on the dataset to compute flash properties.')
     for v, (vmin, vmax) in kwargs.items():
         if vmin is not None:
             good &= (ds[v] >= vmin).data
