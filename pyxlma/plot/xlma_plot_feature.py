@@ -57,11 +57,30 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
-                  plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, edge_color='face', edge_width=0):
+                  plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, edge_color='face', edge_width=0,
+                  **kwargs):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
     and defined plotting colormaps and ranges
     """
+
+    # before **kwargs was added to the function call, the following arguments
+    # were specified as keywords separately. This allows backwards compatibility:
+    if plot_cmap == None:
+        plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
+    if plot_s == None:
+        plot_s = kwargs.pop('s', kwargs.pop('plot_s', None))
+    if plot_vmin == None:
+        plot_vmin = kwargs.pop('vmin', kwargs.pop('plot_vmin', None))
+    if plot_vmax == None:
+        plot_vmax = kwargs.pop('vmax', kwargs.pop('plot_vmax', None))
+    if plot_c == None:
+        plot_c = kwargs.pop('c', kwargs.pop('plot_c', None))
+    if edge_color == 'face':
+        edge_color = kwargs.pop('edgecolors', kwargs.pop('edge_color', 'face'))
+    if edge_width == 0:
+        edge_width = kwargs.pop('linewidths', kwargs.pop('edge_width', 0))
+    
     art_plan = bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                             s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
@@ -86,19 +105,22 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
-                alt_data, plot_cmap):
+                alt_data, **kwargs):
     """
     Plot gridded fields on an existing bk_plot given x,y,z,t grids and
     respective grid edges
     """
+    plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
+    plot_vmin = kwargs.pop('vmin', 0)
+
     alt_lon[alt_lon==0]=np.nan
     alt_lat[alt_lat==0]=np.nan
     lat_lon[lat_lon==0]=np.nan
     alt_time[alt_time==0]=np.nan
-    bk_plot.ax_lon.pcolormesh( xedges, zedges,  alt_lon.T, cmap=plot_cmap, vmin=0)
-    bk_plot.ax_lat.pcolormesh( zedges, yedges,  alt_lat.T, cmap=plot_cmap, vmin=0)
-    bk_plot.ax_plan.pcolormesh(xedges, yedges,  lat_lon.T, cmap=plot_cmap, vmin=0)
-    bk_plot.ax_th.pcolormesh(  tedges, zedges, alt_time.T, cmap=plot_cmap, vmin=0)
+    bk_plot.ax_lon.pcolormesh( xedges, zedges,  alt_lon.T, cmap=plot_cmap, vmin=plot_vmin)
+    bk_plot.ax_lat.pcolormesh( zedges, yedges,  alt_lat.T, cmap=plot_cmap, vmin=plot_vmin)
+    bk_plot.ax_plan.pcolormesh(xedges, yedges,  lat_lon.T, cmap=plot_cmap, vmin=plot_vmin)
+    bk_plot.ax_th.pcolormesh(  tedges, zedges, alt_time.T, cmap=plot_cmap, vmin=plot_vmin)
     bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20))
     plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
