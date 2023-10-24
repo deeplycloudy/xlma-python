@@ -57,7 +57,7 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
-                  plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, edge_color='face', edge_width=0,
+                  plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face', edge_width=0,
                   **kwargs):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
@@ -66,15 +66,15 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
 
     # before **kwargs was added to the function call, the following arguments
     # were specified as keywords separately. This allows backwards compatibility:
-    if plot_cmap == None:
+    if plot_cmap is None:
         plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
-    if plot_s == None:
+    if plot_s is None:
         plot_s = kwargs.pop('s', kwargs.pop('plot_s', None))
-    if plot_vmin == None:
+    if plot_vmin is None:
         plot_vmin = kwargs.pop('vmin', kwargs.pop('plot_vmin', None))
-    if plot_vmax == None:
+    if plot_vmax is None:
         plot_vmax = kwargs.pop('vmax', kwargs.pop('plot_vmax', None))
-    if plot_c == None:
+    if plot_c is None:
         plot_c = kwargs.pop('c', kwargs.pop('plot_c', None))
     if edge_color == 'face':
         edge_color = kwargs.pop('edgecolors', kwargs.pop('edge_color', 'face'))
