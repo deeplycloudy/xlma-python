@@ -83,16 +83,16 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     
     art_plan = bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                            s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
+                            s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_th = bk_plot.ax_th.scatter(time_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
+                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lon = bk_plot.ax_lon.scatter(lon_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o',  linewidths=edge_width, edgecolors=edge_color)
+                          s=plot_s,marker='o',  linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lat = bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color)
+                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
     cnt, bins, art_hist = bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20), color='black')
     art_txt = plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
@@ -117,10 +117,10 @@ def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
     alt_lat[alt_lat==0]=np.nan
     lat_lon[lat_lon==0]=np.nan
     alt_time[alt_time==0]=np.nan
-    bk_plot.ax_lon.pcolormesh( xedges, zedges,  alt_lon.T, cmap=plot_cmap, vmin=plot_vmin)
-    bk_plot.ax_lat.pcolormesh( zedges, yedges,  alt_lat.T, cmap=plot_cmap, vmin=plot_vmin)
-    bk_plot.ax_plan.pcolormesh(xedges, yedges,  lat_lon.T, cmap=plot_cmap, vmin=plot_vmin)
-    bk_plot.ax_th.pcolormesh(  tedges, zedges, alt_time.T, cmap=plot_cmap, vmin=plot_vmin)
+    bk_plot.ax_lon.pcolormesh( xedges, zedges,  alt_lon.T, cmap=plot_cmap, vmin=plot_vmin, **kwargs)
+    bk_plot.ax_lat.pcolormesh( zedges, yedges,  alt_lat.T, cmap=plot_cmap, vmin=plot_vmin, **kwargs)
+    bk_plot.ax_plan.pcolormesh(xedges, yedges,  lat_lon.T, cmap=plot_cmap, vmin=plot_vmin, **kwargs)
+    bk_plot.ax_th.pcolormesh(  tedges, zedges, alt_time.T, cmap=plot_cmap, vmin=plot_vmin, **kwargs)
     bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
                          density=True, bins=80, range=(0, 20))
     plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
