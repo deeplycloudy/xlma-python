@@ -105,7 +105,7 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
-                alt_data, **kwargs):
+                alt_data, plot_cmap=None, **kwargs):
     """
     Plot gridded fields on an existing bk_plot given x,y,z,t grids and
     respective grid edges
