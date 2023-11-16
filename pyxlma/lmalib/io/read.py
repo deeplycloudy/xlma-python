@@ -204,6 +204,46 @@ def to_dataset(lma_file, event_id_start=0):
     return ds
 
 
+def nldn(filenames):
+    """
+    Read Viasala NLDN file and return a pandas dataframe with appropriate column names
+    """
+    if type(filenames) is str:
+        filenames = [filenames]
+    full_df = pd.DataFrame({})
+    for filename in filenames:
+        this_file = pd.read_csv(filename, delim_whitespace=True, header=None, 
+                    names=[
+                        'date', 'time', 'latitude', 'longitude', 'peak_current_kA', 'curr_unit', 'multiplicity', 'semimajor',
+                        'semiminor', 'majorminorratio', 'ellipseangle', 'chi2', 'num_stations', 'type'
+                        ])
+        if len(this_file['curr_unit'].drop_duplicates()) == 1:
+            this_file.drop(columns=['curr_unit'], inplace=True)
+        else:
+            raise ValueError('Multiple current units in file')
+        this_file['datetime'] = pd.to_datetime(this_file['date']+' '+this_file['time'], format='%m/%d/%y %H:%M:%S.%f')
+        this_file.drop(columns=['date','time'], inplace=True)
+        this_file['type'] = this_file['type'].map({'G':'CG','C':'IC'})
+        full_df = pd.concat([full_df, this_file])
+    return full_df
+
+def entln(filenames):
+    """
+    Read Earth Networks Total Lightning Network file and return a pandas dataframe with appropriate column names
+    """
+    if type(filenames) is str:
+        filenames = [filenames]
+    full_df = pd.DataFrame({})
+    for filename in filenames:
+        this_file = pd.read_csv(filename, parse_dates=['timestamp'])
+        this_file['peakcurrent'] = this_file['peakcurrent']/1000
+        this_file['type'] = this_file['type'].map({0:'CG',1:'IC'})
+        rename = {'timestamp' : 'datetime', 'peakcurrent' : 'peak_current_kA', 'sensors' : ''}
+        this_file.rename(columns=rename, inplace=True)
+        full_df = pd.concat([full_df, this_file])
+    return full_df
+
+    
 class lmafile(object):
     def __init__(self,filename):
         """
