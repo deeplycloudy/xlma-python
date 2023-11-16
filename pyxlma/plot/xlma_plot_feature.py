@@ -57,8 +57,8 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
-                  plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face', edge_width=0,
-                  **kwargs):
+                  plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face',
+                  edge_width=0, add_to_histogram=True, **kwargs):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
     and defined plotting colormaps and ranges
@@ -93,14 +93,16 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     art_lat = bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                           s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
-    cnt, bins, art_hist = bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
-                         density=True, bins=80, range=(0, 20), color='black')
-    art_txt = plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
-             fontsize='small', horizontalalignment='left',
-             verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
     art_out = [art_plan, art_th, art_lon, art_lat, art_txt]
-    # art_hist is a tuple of patch objects. Make it a flat list of artists
-    art_out.extend(art_hist)
+
+    if add_to_histogram:
+        cnt, bins, art_hist = bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
+                            density=True, bins=80, range=(0, 20), color='black')
+        art_txt = plt.text(0.25, 0.10, str(len(alt_data)) + ' src',
+                fontsize='small', horizontalalignment='left',
+                verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
+        # art_hist is a tuple of patch objects. Make it a flat list of artists
+        art_out.extend(art_hist)
     return art_out
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
