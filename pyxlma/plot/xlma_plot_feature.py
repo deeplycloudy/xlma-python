@@ -111,7 +111,13 @@ def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
     """
     Plot gridded fields on an existing bk_plot given x,y,z,t grids and
     respective grid edges
+
+    In previous versions, 'plot_cmap' was required positional argument, this now defaults to None/matplotlib default unless overridden
+    Before the addition of **kwargs, 'vmin' was hardcoded to 0. This allows the user to specify a vmin in **kwargs, but maintain
+    backwards compatibility with assuming a vmin of 0 if no vmin is provided 
+
     """
+
     plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
     plot_vmin = kwargs.pop('vmin', 0)
 
