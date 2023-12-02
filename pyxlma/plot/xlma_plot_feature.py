@@ -93,7 +93,7 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     art_lat = bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
                           s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
-    art_out = [art_plan, art_th, art_lon, art_lat, art_txt]
+    art_out = [art_plan, art_th, art_lon, art_lat]
 
     if add_to_histogram:
         cnt, bins, art_hist = bk_plot.ax_hist.hist(alt_data, orientation='horizontal',
