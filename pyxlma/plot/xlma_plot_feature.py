@@ -102,7 +102,8 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
                 fontsize='small', horizontalalignment='left',
                 verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
         # art_hist is a tuple of patch objects. Make it a flat list of artists
-        art_out.extend(art_hist)
+        art_out.extend(art_text)
+    art_out.extend(art_hist)
     return art_out
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
