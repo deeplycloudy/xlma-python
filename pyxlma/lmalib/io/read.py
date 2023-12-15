@@ -97,6 +97,8 @@ def dataset(filenames, sort_time=True):
     """ Create an xarray dataset of the type returned by
         pyxlma.lmalib.io.cf_netcdf.new_dataset for each filename in filenames
     """
+    if type(filenames) == str:
+        filenames = [filenames]
     lma_data = []
     starttime = None
     next_event_id = 0
