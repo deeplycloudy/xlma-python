@@ -1,9 +1,8 @@
-comment:
-  layout: "header, diff, flags, components"
-  
-component_management:
-  individual_components:
-    - component_id: pyxlma
-      name: pyxlma
-      paths:
-        - pyxlma
+coverage:
+  status:
+    project:
+      library:
+        target: auto
+        threshold: 0.1%
+        paths:
+          - "pyxlma/.*"
