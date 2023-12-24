@@ -29,13 +29,13 @@ jobs:
         "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
-        micromamba install pytest xarray netcdf4 -c conda-forge
+        micromamba install pytest-cov xarray netcdf4 -c conda-forge
         python -m pip install .
     - name: Test with pytest
       run: |
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
-        pytest
+        pytest --cov --cov-report=xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       env:
