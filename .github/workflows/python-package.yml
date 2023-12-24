@@ -36,6 +36,7 @@ jobs:
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         pytest --cov=pyxlma/ --cov-report=xml tests/
+        cat ./coverage.xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       env:
