@@ -27,6 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+        eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         micromamba install pytest xarray
         python -m pip install .
