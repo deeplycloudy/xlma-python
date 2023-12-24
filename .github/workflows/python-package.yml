@@ -36,3 +36,7 @@ jobs:
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         pytest
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
