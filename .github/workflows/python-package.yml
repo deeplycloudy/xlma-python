@@ -1,0 +1,43 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python package
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+        eval "$(micromamba shell hook --shell bash)"
+        micromamba activate base
+        micromamba install pytest-cov xarray netcdf4 -c conda-forge
+        python -m pip install .
+    - name: Test with pytest
+      run: |
+        eval "$(micromamba shell hook --shell bash)"
+        micromamba activate base
+        coverage run --source=pyxlma -m pytest tests/
+        coverage xml
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
