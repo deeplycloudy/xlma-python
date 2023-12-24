@@ -33,5 +33,6 @@ jobs:
         python -m pip install .
     - name: Test with pytest
       run: |
+        eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         pytest
