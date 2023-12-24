@@ -1,8 +1,0 @@
-coverage:
-  status:
-    project:
-      library:
-        target: auto
-        threshold: 0.1%
-        paths:
-          - "pyxlma/.*"
