@@ -35,7 +35,7 @@ jobs:
       run: |
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
-        coverage run -m pytest tests/
+        coverage run --source=pyxlma -m pytest tests/
         coverage xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
