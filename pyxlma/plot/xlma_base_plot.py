@@ -181,7 +181,8 @@ class BlankPlot(object):
 
         # Plan view
         if self.bkgmap==True:
-            self.ax_plan.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
+            if COUNTIES != None:
+                self.ax_plan.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
             self.ax_plan.add_feature(cfeature.BORDERS)
             self.ax_plan.add_feature(cfeature.STATES.with_scale('10m'))
         self.ax_plan.set_xlabel('Longitude (degrees)')

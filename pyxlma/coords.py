@@ -67,6 +67,8 @@ class GeographicSystem(CoordinateSystem):
         if (r_equator is not None) | (r_pole is not None):
             if r_pole is None:
                 r_pole=r_equator
+            if r_equator is None:
+                r_equator=r_pole
             self.ERSlla = proj4.Proj(proj='latlong', a=r_equator, b=r_pole)
             self.ERSxyz = proj4.Proj(proj='geocent', a=r_equator, b=r_pole)
         else:
