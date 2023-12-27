@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v3
@@ -29,15 +29,21 @@ jobs:
         "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
-        micromamba install pytest-cov xarray netcdf4 -c conda-forge
+        micromamba install pytest-cov pytest-mpl xarray netcdf4 pandas numpy scikit-learn scipy pyproj cartopy metpy ipywidgets python=${{ matrix.python-version }} -c conda-forge
         python -m pip install .
     - name: Test with pytest
       run: |
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
-        coverage run --source=pyxlma -m pytest tests/
+        coverage run --source=pyxlma -m pytest --mpl --mpl-baseline-path=tests/truth/images/ --mpl-generate-summary=html,json --mpl-results-path=tests/mpl-results/ tests/
         coverage xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload matplotlib test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: matplotlib-results
+        path: tests/mpl-results/

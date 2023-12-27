@@ -19,7 +19,7 @@ def hull_volume(xyz):
     assert xyz.shape[1] == 3
 
     tri = Delaunay(xyz[:,0:3])
-    vertices = tri.points[tri.vertices]
+    vertices = tri.points[tri.simplices]
 
     # This is the volume formula in
     # https://github.com/scipy/scipy/blob/master/scipy/spatial/tests/test_qhull.py#L106
@@ -287,7 +287,7 @@ def filter_flashes(ds, **kwargs):
     good = np.ones(ds.flash_id.shape, dtype=bool)
     # print("Starting flash count: ", good.sum())
     if 'flash_event_count' in ds.variables:
-        if np.all(ds.flash_event_count == np.iinfo(np.uint64).max):
+        if np.all(ds.flash_event_count == np.iinfo(np.uint32).max):
             raise ValueError('Before filtering a dataset by flash properties, call flash_stats on the dataset to compute flash properties.')
     for v, (vmin, vmax) in kwargs.items():
         if vmin is not None:
