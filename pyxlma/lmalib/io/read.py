@@ -4,6 +4,20 @@ import numpy as np
 import gzip
 import datetime as dt
 
+class open_gzip_or_dat:
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __enter__(self):
+        if self.filename.endswith('.gz'):
+            self.file = gzip.open(self.filename)
+        else:
+            self.file = open(self.filename, 'rb')
+        return self.file
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.file.close()
+
 def mask_to_int(mask):
     """ Convert object array of mask strings to integers"""
     if len(mask.shape) == 0:
@@ -263,7 +277,7 @@ class lmafile(object):
         """
         self.file = filename
 
-        with gzip.open(self.file) as f:
+        with open_gzip_or_dat(self.file) as f:
             for line_no, line in enumerate(f):
                 if line.startswith(b'Analysis program:'):
                     analysis_program = line.decode().split(':')[1:]
@@ -345,7 +359,7 @@ class lmafile(object):
         of the station names.
         """
         nstations = self.station_data_start-self.station_info_start-1
-        with gzip.open(self.file) as f:
+        with open_gzip_or_dat(self.file) as f:
             for i in range(self.station_info_start+1):
                 line = next(f)
             for line in range(nstations):
@@ -363,7 +377,7 @@ class lmafile(object):
         """
         nstations = self.station_data_start-self.station_info_start-1
 
-        with gzip.open(self.file) as f:
+        with open_gzip_or_dat(self.file) as f:
             for i in range(self.station_data_start+1):
                 line = next(f)
             for line in range(nstations):
@@ -388,7 +402,11 @@ class lmafile(object):
         """
         # Read in data. Catch case where there is no data.
         try:
-            lmad = pd.read_csv(self.file,compression='gzip',delim_whitespace=True,
+            if self.file.endswith('.gz'):
+                comp = 'gzip'
+            else:
+                comp = None
+            lmad = pd.read_csv(self.file,compression=comp,delim_whitespace=True,
                                header=None,skiprows=self.data_starts+1,on_bad_lines='skip')
             lmad.columns = self.names
         except pd.errors.EmptyDataError:

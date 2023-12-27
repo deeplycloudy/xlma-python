@@ -181,13 +181,12 @@ class BlankPlot(object):
 
         # Plan view
         if self.bkgmap==True:
-            self.ax_plan.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
+            if COUNTIES != None:
+                self.ax_plan.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
             self.ax_plan.add_feature(cfeature.BORDERS)
             self.ax_plan.add_feature(cfeature.STATES.with_scale('10m'))
         self.ax_plan.set_xlabel('Longitude (degrees)')
         self.ax_plan.set_ylabel('Latitude (degrees)')
-        self.ax_plan.set_xlim(self.xlim)
-        self.ax_plan.set_ylim(self.ylim)
 
 
         # lon_formatter = LongitudeFormatter(number_format='.2f',
@@ -202,6 +201,9 @@ class BlankPlot(object):
         self.ax_plan.xaxis.set_major_formatter(self.majorFormatter)
         self.ax_plan.yaxis.set_major_formatter(self.majorFormatter)
         self.set_ax_plan_labels()
+        self.ax_plan.set_xlim(self.xlim)
+        self.ax_plan.set_ylim(self.ylim)
+        self.ax_plan.set_aspect('auto')
 
 def subplot_labels(plot):
     """

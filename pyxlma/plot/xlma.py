@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import datetime as dt
+import pandas as pd
 from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
 
 import cartopy
@@ -145,7 +146,7 @@ class XlmaPlot(object):
             from pandas.plotting import register_matplotlib_converters
             register_matplotlib_converters()
             try:
-                self.datetime = self.data.event_time.to_dataframe().event_time
+                self.datetime = pd.Series(self.data.event_time.data.flatten()).dt.to_pydatetime()
             except:
                 self.data_exists=False
                 self.datetime = [self.stime,self.stime+dt.timedelta(minutes=10)]
