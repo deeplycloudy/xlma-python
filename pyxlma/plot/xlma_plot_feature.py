@@ -63,7 +63,7 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
                   plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face',
-                  edge_width=0, add_to_histogram=True, **kwargs):
+                  edge_width=0, add_to_histogram=True, marker='o', **kwargs):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
     and defined plotting colormaps and ranges
@@ -88,16 +88,16 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     
     art_plan = bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                            s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                            s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_th = bk_plot.ax_th.scatter(time_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lon = bk_plot.ax_lon.scatter(lon_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o',  linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lat = bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_out = [art_plan, art_th, art_lon, art_lat]
 
     if add_to_histogram:
@@ -110,6 +110,67 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
         art_out.append(art_txt)
     art_out.append(art_hist)
     return art_out
+
+
+def plot_2d_network_points(bk_plot, netw_data, fake_ic_height=18, fake_cg_height=1,
+                        color_by='time', pos_color='red', neg_color='blue', **kwargs):
+    """
+    Plot points from a 2D lightning mapping neworks (ie, NLDN, ENTLN, etc)
+
+    Parameters:
+    bk_plot: an existing pyxlma.plot.xlma_base_plot.BlankPlot object
+    netw_data: a pandas or xarray data object with columns/variables
+        'longitude', 'latitude', 'type' (CG/IC), and 'datetime'
+    fake_ic_height: the altitude to plot IC points (default 18 km)
+    fake_cg_height: the altitude to plot CG points (default 1 km)
+    color_by: 'time' or 'polarity' (default 'time'). Ignored if **kwargs contains 'c'
+    pos_color: color for positive points (default 'red') if color_by='polarity'
+    neg_color: color for negative points (default 'blue') if color_by='polarity'
+    **kwargs: additional keyword arguments to pass to plt.scatter
+
+    Returns:
+    art_out: nested lists of artists created by plot_points (first list CG, second list IC)
+
+    """
+
+    plot_c = kwargs.pop('c', None)
+    vmin = kwargs.pop('vmin', None)
+    vmax = kwargs.pop('vmax', None)
+    marker = kwargs.pop('marker', '^')
+    cgs = netw_data[netw_data['type']=='CG']
+    ics = netw_data[netw_data['type']=='IC']
+    art_out = []
+    if plot_c is None:
+        if color_by == 'time':
+            vmin, vmax, plot_c_cg = color_by_time(cgs.datetime, bk_plot.tlim)
+            art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, np.full_like(cgs.longitude.values, fake_cg_height),
+                        cgs.datetime, c=plot_c_cg, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
+            vmin, vmax, plot_c_ic = color_by_time(ics.datetime, bk_plot.tlim)
+            art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, np.full_like(ics.longitude.values, fake_ic_height),
+                        ics.datetime, c=plot_c_ic, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
+        elif color_by == 'polarity':
+            cgpos = cgs[cgs.peak_current_kA>0]
+            cgneg = cgs[cgs.peak_current_kA<0]
+            icpos = ics[ics.peak_current_kA>0]
+            icneg = ics[ics.peak_current_kA<0]
+            art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, np.full_like(cgneg.longitude.values, fake_cg_height),
+                        cgneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+            art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, np.full_like(cgpos.longitude.values, fake_cg_height),
+                        cgpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
+            art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, np.full_like(icneg.longitude.values, fake_ic_height),
+                        icneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+            art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, np.full_like(icpos.longitude.values, fake_ic_height),
+                        icpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
+        else:
+            raise ValueError("color_by must be 'time' or 'polarity'")
+    else:
+        art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, np.full_like(cgs.longitude.values, fake_cg_height),
+                    cgs.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
+        art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, np.full_like(ics.longitude.values, fake_ic_height),
+                    ics.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
+
+    return art_out
+
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
