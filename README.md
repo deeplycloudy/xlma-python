@@ -16,6 +16,38 @@ pip install -e .
 
 Then, copy the `XLMA_plots.ipynb` notebook to wherever you'd like and start changing files, dates and times to show data from your case of interest. There also a notebook showing how to do flash sorting and save a new NetCDF file with those data.
 
+# Dependencies
+Required:
+
+- xarray (I/O requires the netcdf4 backend)
+- pandas
+- numpy
+
+Flash clustering:
+
+- scikit-learn
+- scipy
+- pyproj
+
+Plotting:
+
+- matplotlib
+- cartopy
+- metpy (optionally, for US county lines)
+
+Interactive:
+
+- jupyterlab (or, notebook)
+- ipywidgets
+- ipympl
+
+Building:
+
+- setuptools
+- pytest-cov
+- pytest-mpl
+- ...and all of the above
+
 # Technical architecture
 
 We envision a two-part package that keeps a clean separation between the core data model, analysis, and display. XLMA utilized a large, global `state` structure that stored all data, as well as the current data selection corresponding to the view in the GUI. Analysis then operated on whatever data was in the current selection.

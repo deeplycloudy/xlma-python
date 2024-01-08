@@ -67,19 +67,19 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     # before **kwargs was added to the function call, the following arguments
     # were specified as keywords separately. This allows backwards compatibility:
     if plot_cmap is None:
-        plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
+        plot_cmap = kwargs.pop('cmap', plot_cmap)
     if plot_s is None:
-        plot_s = kwargs.pop('s', kwargs.pop('plot_s', None))
+        plot_s = kwargs.pop('s', plot_s)
     if plot_vmin is None:
-        plot_vmin = kwargs.pop('vmin', kwargs.pop('plot_vmin', None))
+        plot_vmin = kwargs.pop('vmin', plot_vmin)
     if plot_vmax is None:
-        plot_vmax = kwargs.pop('vmax', kwargs.pop('plot_vmax', None))
+        plot_vmax = kwargs.pop('vmax', plot_vmax)
     if plot_c is None:
-        plot_c = kwargs.pop('c', kwargs.pop('plot_c', None))
+        plot_c = kwargs.pop('c', plot_c)
     if edge_color == 'face':
-        edge_color = kwargs.pop('edgecolors', kwargs.pop('edge_color', 'face'))
+        edge_color = kwargs.pop('edgecolors', edge_color)
     if edge_width == 0:
-        edge_width = kwargs.pop('linewidths', kwargs.pop('edge_width', 0))
+        edge_width = kwargs.pop('linewidths', edge_width)
     
     art_plan = bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
@@ -103,7 +103,7 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
                 verticalalignment='center',transform=bk_plot.ax_hist.transAxes)
         # art_hist is a tuple of patch objects. Make it a flat list of artists
         art_out.append(art_txt)
-    art_out.append(art_hist)
+        art_out.append(art_hist)
     return art_out
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
@@ -119,7 +119,7 @@ def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
 
     """
 
-    plot_cmap = kwargs.pop('cmap', kwargs.pop('plot_cmap', None))
+    plot_cmap = kwargs.pop('cmap', plot_cmap)
     plot_vmin = kwargs.pop('vmin', 0)
 
     alt_lon[alt_lon==0]=np.nan
