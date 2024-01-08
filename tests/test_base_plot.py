@@ -76,6 +76,20 @@ def test_plot_feature_plot_points_new_kw_no_bkmap():
 
 
 @pytest.mark.mpl_image_compare
+def test_plot_feature_plot_points_new_kw_no_hist():
+    start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
+    end_time = start_time + dt.timedelta(seconds=60)
+    bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
+    dataset = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
+    times = pd.Series(dataset.event_time.data.flatten())
+    vmin, vmax, colors = color_by_time(pd.to_datetime(times), (start_time, end_time))
+    plot_points(bk_plot, dataset.event_longitude.data, dataset.event_latitude.data, dataset.event_altitude.data/1000,
+                dataset.event_time.data, cmap='rainbow', s=5, vmin=vmin, vmax=vmax,
+                c=colors, edgecolors='k', linewidths=0.1, add_to_histogram=False)
+    return bk_plot.fig
+
+
+@pytest.mark.mpl_image_compare
 def test_plot_feature_plot_3d_grid():
     dataset = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
     x_edges = np.linspace(-103.5, -99.5, 100)
