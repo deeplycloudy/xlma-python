@@ -17,14 +17,29 @@ def test_subset():
                                               '2023-12-24T00:57:07.814960674', '2023-12-24T00:57:07.826344209']).astype(np.datetime64).astype(float))
     assert np.sum(selection) == 10
 
-def test_color_by_time_datetime():
+def test_color_by_time_datetime_nolimit():
+    some_datetimes = np.array([dt(2021, 4, 9, 1, 51, 0), dt(2021, 4, 9, 1, 52, 0), dt(2021, 4, 9, 1, 53, 0), dt(2021, 4, 9, 1, 54, 0), dt(2021, 4, 9, 1, 59, 0)])
+    vmin, vmax, colors = color_by_time(some_datetimes)
+    assert vmin == 0
+    assert vmax == 480
+    assert np.allclose(colors, np.array([0, 60, 120, 180, 480]))
+
+
+def test_color_by_time_datetime_limit():
     some_datetimes = np.array([dt(2021, 4, 9, 1, 51, 0), dt(2021, 4, 9, 1, 52, 0), dt(2021, 4, 9, 1, 53, 0), dt(2021, 4, 9, 1, 54, 0), dt(2021, 4, 9, 1, 59, 0)])
     limits = [dt(2021, 4, 9, 1, 50, 0), dt(2021, 4, 9, 2, 0, 0)]
     vmin, vmax, colors = color_by_time(some_datetimes, limits)
     assert vmin == 0
-    assert vmax == 540
-    assert np.allclose(colors, np.array([0, 60, 120, 180, 480]))
+    assert vmax == 600
+    assert np.allclose(colors, np.array([60, 120, 180, 240, 540]))
 
+def test_color_by_time_xarray():
+    dataset = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
+    vmin, vmax, colors = color_by_time(dataset.event_time)
+    assert vmin == 0
+    assert np.isclose(vmax, 57.943683385849)
+    assert np.isclose(np.mean(colors), 30.483982899376258)
+    assert np.isclose(np.std(colors), 17.25687093241869)
 
 def test_setup_hist():
     lma = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')

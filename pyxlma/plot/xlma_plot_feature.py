@@ -25,19 +25,24 @@ def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
     return lon_data, lat_data, alt_data, time_data, selection
 
 
-def color_by_time(time_array, tlim):
+def color_by_time(time_array, tlim=None):
     """
-    Generates colormap values for plotting VHF sources by time in a
+    Generates colormap values for plotting scatter points by time in a
     given time window
 
     Returns: min, max values, array by time
     """
-    vmax = (tlim[1] - time_array.min()).total_seconds()
-    ldiff = time_array - time_array.min()
-    ldf = []
-    for df in ldiff:
-        ldf.append(df.total_seconds())
-    c = np.array(ldf)
+    if tlim is None:
+        tlim = np.array([np.atleast_1d(time_array.min())[0],
+                         np.atleast_1d(time_array.max())[0]])
+    nsToS = 1e9
+    time_array = np.array(time_array).astype('datetime64[ns]').astype(float)/nsToS
+    tlim = np.atleast_1d(tlim).astype('datetime64[ns]').astype(float)/nsToS
+    
+    ldiff = time_array - tlim[0]
+
+    vmax = tlim[1] - tlim[0]
+    c = ldiff.astype(float)
     vmin = 0
 
     return vmin, vmax, c
