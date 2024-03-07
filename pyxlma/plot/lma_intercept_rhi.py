@@ -1,32 +1,25 @@
 from pyxlma.coords import RadarCoordinateSystem, TangentPlaneCartesianSystem, GeographicSystem
-import numpy as np
-import pyart       
+import numpy as np  
 
 
-def rcs_to_tps(radar):
+def rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
     """
     Given a rhi radar file read by pyart in range elevation azimuth coordinates,
     it returns the tangent plane coordinates X(pointing east),Y(pointing north),Z(local height) of it.    
     """
 
     # Coordinates Systems
-    ctrlat, ctrlon, ctralt = np.ma.getdata(radar.latitude['data'][0]),np.ma.getdata(radar.longitude['data'][0]),np.ma.getdata(radar.altitude['data'][0]) 
-    rcs = RadarCoordinateSystem(ctrlat, ctrlon, ctralt)
-    tps = TangentPlaneCartesianSystem(ctrlat, ctrlon, ctralt)
+    rcs = RadarCoordinateSystem(radar_latitude, radar_longitude, radar_altitude)
+    tps = TangentPlaneCartesianSystem(radar_latitude, radar_longitude, radar_altitude)
 
     # - Elevations, azimuth, range
+    r = np.array([0, 1])
 
-    l_az = len(radar.azimuth['data'])
-    l_r = len(radar.range['data'])
+    els = np.array([0])
+    els = np.tensordot(els, np.ones_like(r), axes=0)
 
-    r = np.zeros((l_az, l_r))
-    r[:,] = radar.range['data']
-
-    els = radar.elevation['data']
-    els = np.tensordot(els, np.ones_like(r[0,:]), axes=0)
-
-    azi = radar.azimuth['data']
-    az = np.tensordot(azi, np.ones_like(r[0,:]), axes=0)
+    azi = np.array([radar_azimuth])
+    az = np.tensordot(azi, np.ones_like(r), axes=0)
 
     a, b, c = rcs.toECEF(r,az,els)
     abc = np.vstack((a,b,c))
@@ -36,23 +29,21 @@ def rcs_to_tps(radar):
     Y = n[1,:]
     Z = n[2,:]
 
-    X = np.reshape(X,  (l_az, l_r))
-    Y = np.reshape(Y,  (l_az, l_r))
-    Z = np.reshape(Z,  (l_az, l_r))
+    X = np.reshape(X,  (1, 2))
+    Y = np.reshape(Y,  (1, 2))
+    Z = np.reshape(Z,  (1, 2))
     
     return X, Y, Z
 
 
-def geo_to_tps(lma_file, radar_file):
+def geo_to_tps(lma_file, radar_latitude, radar_longitude, radar_altitude):
     """
     Given a lma file read by lmatools in latitude, longitude, altitude coordinates,it returns the tangent plane coordinates Xlma(pointing east),Ylma(pointing north),Z(local height) of it.
     """
-    # Coordinates Systems - radar
-    ctrlat, ctrlon = radar_file.latitude['data'][0], radar_file.longitude['data'][0]
     # GeographicSystem GEO - Lat, lon, alt
     geo = GeographicSystem()
     # Tangent Plane Cartesian System TPS - 
-    tps = TangentPlaneCartesianSystem(ctrlat, ctrlon, radar_file.altitude['data'][0])
+    tps = TangentPlaneCartesianSystem(radar_latitude, radar_longitude, radar_altitude)
 
     # GEO to TPS
 
@@ -69,13 +60,13 @@ def geo_to_tps(lma_file, radar_file):
     return Xlma,Ylma,Zlma
 
 
-def ortho_proj_lma(radar_file, lma_file):
+def ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
     """
     Given a lma file read by lmatools and radar file read by pyart, it transforms both datasets to tangent plane coordinate system,
     and returns the lma sources coordinates rotated with x:pointing along the RHI scan, y:orthogonal to x, counterclockwise and z:local height.
     """
-    Xlma,Ylma,Zlma = geo_to_tps(lma_file, radar_file)
-    X, Y, Z = rcs_to_tps(radar_file)
+    Xlma,Ylma,Zlma = geo_to_tps(lma_file, radar_latitude, radar_longitude, radar_altitude)
+    X, Y, Z = rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth)
 
     lon_ini1 = X[0,0]
     lat_ini1 = Y[0,0]
@@ -121,6 +112,12 @@ def ortho_proj_lma(radar_file, lma_file):
 
     #
     lma_file_loc[:,0] = np.sqrt(lma_file_loc_par[:,0]**2 + lma_file_loc_par[:,1]**2)
+    if radar_azimuth <= 90 or radar_azimuth >= 270:
+        lma_file_loc[:,0][lma_file_loc_par[:,1] < 0] = -lma_file_loc[:,0][lma_file_loc_par[:,1] < 0]
+    elif radar_azimuth > 180 and radar_azimuth < 270:
+        lma_file_loc[:,0][lma_file_loc_par[:,0] > 0] = -lma_file_loc[:,0][lma_file_loc_par[:,0] > 0]
+    else:
+        lma_file_loc[:,0][lma_file_loc_par[:,0] < 0] = -lma_file_loc[:,0][lma_file_loc_par[:,0] < 0]
     lma_file_loc[:,1] = np.sqrt(lma_file_loc_perp[:,0]**2 + lma_file_loc_perp[:,1]**2)
     lma_file_loc[:,2] = Zlma
 
@@ -128,18 +125,22 @@ def ortho_proj_lma(radar_file, lma_file):
     return lma_file_loc
 
 
-def find_points_near_rhi(radar_file, lma_file, distance_threshold=1000, time_threshold=60):
-    time_of_scan = np.array([pyart.util.datetime_from_radar(radar_file)]).astype('datetime64[s]')[0]
+def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth, radar_scan_time, distance_threshold=1000, time_threshold=60):
 
-    projected_lma = ortho_proj_lma(radar_file, lma_file)
+    radar_azimuth = radar_azimuth % 360
+
+    radar_scan_time = np.array([radar_scan_time]).astype('datetime64[s]')
+
+    projected_lma = ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth)
     lma_range = projected_lma[:,0]
     lma_dist = projected_lma[:,1]
     lma_alt = projected_lma[:,2]
 
     lma_times = lma_file.event_time.data.astype('datetime64[s]')
-    points_i_want = (lma_dist < distance_threshold) & (np.abs(lma_times - time_of_scan).astype(float) < time_threshold) & (lma_file.event_chi2.data < 1)
+    points_i_want = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time).astype(float) < time_threshold)
     lma_range = lma_range[points_i_want]
     lma_dist = lma_dist[points_i_want]
     lma_alt = lma_alt[points_i_want]
+    lma_ids = lma_file.event_id.data[points_i_want]
 
-    return lma_range, lma_dist, lma_alt
+    return lma_range, lma_dist, lma_alt, lma_ids
