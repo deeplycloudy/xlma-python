@@ -59,7 +59,7 @@ def test_intercept_rhi():
        5543, 5555, 5556, 5565, 5759, 5770, 5773, 5774, 5775, 5776, 5777,
        5778, 5779, 5780, 5781, 5783, 5784, 5791, 5797, 5798, 5969, 6156,
        6158, 6163, 6164, 6165, 6167, 6170, 6173, 6176, 6177, 6179, 6180,
-       6183, 6187, 6196, 6205, 6207, 6210, 6211, 6212, 6216, 6219, 6324])
+       6183, 6187, 6196, 6205, 6207, 6210, 6211, 6212, 6216, 6219, 6324], dtype='uint64')
     assert np.allclose(lma_radar_range, true_radar_range, atol=1e-3)
     assert np.allclose(lma_plane_distance, true_plane_distance, atol=1e-3)
     assert np.allclose(lma_arl, true_radar_arl, atol=1e-3)
