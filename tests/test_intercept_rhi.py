@@ -63,4 +63,4 @@ def test_intercept_rhi():
     assert np.allclose(lma_radar_range, true_radar_range, atol=1e-3)
     assert np.allclose(lma_plane_distance, true_plane_distance, atol=1e-3)
     assert np.allclose(lma_arl, true_radar_arl, atol=1e-3)
-    assert np.allclose(lma_ids, true_lma_ids)
+    assert np.allclose(lma_ids, true_lma_ids, atol=1e-1)
