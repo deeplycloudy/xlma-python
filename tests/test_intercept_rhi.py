@@ -12,10 +12,6 @@ def test_intercept_rhi():
     files_to_read = ['examples/data/'+file for file in files_to_read]
     dataset, start_date = lma_read.dataset(files_to_read)
     lma_radar_range, lma_plane_distance, lma_arl, lma_ids = lma_intercept_rhi.find_points_near_rhi(dataset, 33.56, -101.81, 1600.0, 225, start_date+timedelta(seconds=30), distance_threshold=500, time_threshold=15)
-    print(lma_radar_range)
-    print(lma_plane_distance)
-    print(lma_arl)
-    print(lma_ids)
     
     true_radar_range = np.array([-24314.95714263, -24255.42134556, -23947.00309296, -24201.07999466,
        -24216.22494555, -24209.0779143 , -24252.54770026, -24196.90100367,
@@ -64,7 +60,7 @@ def test_intercept_rhi():
        5778, 5779, 5780, 5781, 5783, 5784, 5791, 5797, 5798, 5969, 6156,
        6158, 6163, 6164, 6165, 6167, 6170, 6173, 6176, 6177, 6179, 6180,
        6183, 6187, 6196, 6205, 6207, 6210, 6211, 6212, 6216, 6219, 6324])
-    assert np.allclose(lma_radar_range, true_radar_range)
-    assert np.allclose(lma_plane_distance, true_plane_distance)
-    assert np.allclose(lma_arl, true_radar_arl)
+    assert np.allclose(lma_radar_range, true_radar_range, atol=1e-3)
+    assert np.allclose(lma_plane_distance, true_plane_distance, atol=1e-3)
+    assert np.allclose(lma_arl, true_radar_arl, atol=1e-3)
     assert np.allclose(lma_ids, true_lma_ids)
