@@ -1,4 +1,4 @@
-from pyxlma.plot import lma_intercept_rhi
+from pyxlma.lmalib import lma_intercept_rhi
 from pyxlma.lmalib.io import read as lma_read
 from datetime import timedelta
 from os import listdir
