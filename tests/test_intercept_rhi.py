@@ -12,7 +12,7 @@ def test_intercept_rhi():
     files_to_read = ['examples/data/'+file for file in files_to_read]
     dataset, start_date = lma_read.dataset(files_to_read)
     lma_radar_range, lma_plane_distance, lma_arl, event_mask = lma_intercept_rhi.find_points_near_rhi(dataset, 33.56, -101.81, 1600.0, 225, start_date+timedelta(seconds=30), distance_threshold=500, time_threshold=15)
-    lma_ids = dataset.event_id.isel(number_of_events=np.flatnonzero(event_mask))
+    lma_indices = np.flatnonzero(event_mask)
     true_radar_range = np.array([-24314.95714263, -24255.42134556, -23947.00309296, -24201.07999466,
        -24216.22494555, -24209.0779143 , -24252.54770026, -24196.90100367,
        -24261.77984816, -24002.07311165, -23977.02349918, -23922.33835871,
@@ -55,12 +55,15 @@ def test_intercept_rhi():
        2746.43494287, 2584.35605103, 2341.75645168, 2613.90859694,
        2919.30959546, 2614.69497102, 2473.25507194, 2782.82223582,
        2461.79799166, 2377.74468257, 7332.69246886])
-    true_lma_ids = np.array([5499, 5501, 5502, 5504, 5509, 5511, 5513, 5520, 5524, 5536, 5537,
-       5543, 5555, 5556, 5565, 5759, 5770, 5773, 5774, 5775, 5776, 5777,
-       5778, 5779, 5780, 5781, 5783, 5784, 5791, 5797, 5798, 5969, 6156,
-       6158, 6163, 6164, 6165, 6167, 6170, 6173, 6176, 6177, 6179, 6180,
-       6183, 6187, 6196, 6205, 6207, 6210, 6211, 6212, 6216, 6219, 6324], dtype='uint64')
+    true_lma_ids = np.array([12731, 12733, 12734, 12736, 12741, 12743, 12745, 12752, 12756, 
+                             12768, 12769, 12775, 12787, 12788, 12797, 12991, 13002, 13005,
+                             13006, 13007, 13008, 13009, 13010, 13011, 13012, 13013, 13015,
+                             13016, 13023, 13029, 13030, 13201, 13388, 13390, 13395, 13396,
+                             13397, 13399, 13402, 13405, 13408, 13409, 13411, 13412, 13415,
+                             13419, 13428, 13437, 13439, 13442, 13443, 13444, 13448, 13451,
+                             13556], dtype='uint64')
     assert np.allclose(lma_radar_range, true_radar_range, atol=1e-3)
     assert np.allclose(lma_plane_distance, true_plane_distance, atol=1e-3)
     assert np.allclose(lma_arl, true_radar_arl, atol=1e-3)
-    assert np.all(lma_ids == true_lma_ids)
+    assert np.all(lma_indices == true_lma_ids)
+
