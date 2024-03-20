@@ -225,8 +225,8 @@ def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitu
         A 1D array representing the distance from the radar RHI scan plane to each filtered  LMA point.
     lma_alt : `numpy.ndarray`
         A 1D array representing the height above the radar of each filtered  LMA point.
-    lma_ids : `numpy.ndarray`
-        A 1D array representing the event_id of each filtered LMA point.
+    point_mask : `numpy.ndarray`
+        A 1D array of booleans representing the VHF points that were included in the return.
     """
 
     radar_azimuth = radar_azimuth % 360
@@ -239,10 +239,9 @@ def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitu
     lma_alt = projected_lma[:,2]
 
     lma_times = lma_file.event_time.data.astype('datetime64[s]')
-    points_i_want = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time).astype(float) < time_threshold)
-    lma_range = lma_range[points_i_want]
-    lma_dist = lma_dist[points_i_want]
-    lma_alt = lma_alt[points_i_want]
-    lma_ids = lma_file.event_id.data[points_i_want]
+    point_mask = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time).astype(float) < time_threshold)
+    lma_range = lma_range[point_mask]
+    lma_dist = lma_dist[point_mask]
+    lma_alt = lma_alt[point_mask]
 
-    return lma_range, lma_dist, lma_alt, lma_ids
+    return lma_range, lma_dist, lma_alt, point_mask
