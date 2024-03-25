@@ -220,11 +220,11 @@ def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitu
     Returns
     ----------
     lma_range : `numpy.ndarray`
-        A 1D array representing the distance along the radar RHI scan to each filtered LMA point.
+        A 1D array representing the distance along the tangent plane in the direction of the RHI scan.
     lma_dist : `numpy.ndarray`
         A 1D array representing the distance from the radar RHI scan plane to each filtered LMA point.
     lma_alt : `numpy.ndarray`
-        A 1D array representing the height above the radar of each filtered LMA point.
+        A 1D array representing the height above the tangent plane centered at radar level of each filtered LMA point.
     point_mask : `numpy.ndarray`
         A 1D array of booleans representing the VHF points that were included in the return.
     """
