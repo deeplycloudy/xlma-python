@@ -149,6 +149,25 @@ def test_plot_feature_ndln_time():
     return bk_plot.fig
 
 
+def test_plot_feature_ndln_bad_arg():
+    start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
+    end_time = start_time + dt.timedelta(seconds=60)
+    bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
+    nldn_data = lma_read.nldn('examples/network_samples/gld360enldnns_20231224_daily_v1_lit.raw')
+    with pytest.raises(ValueError, match="color_by must be 'time' or 'polarity'"):
+        plot_2d_network_points(bk_plot, nldn_data, color_by='bad_arg')
+
+
+@pytest.mark.mpl_image_compare
+def test_plot_feature_ndln_custom_colors():
+    start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
+    end_time = start_time + dt.timedelta(seconds=60)
+    bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
+    nldn_data = lma_read.nldn('examples/network_samples/gld360enldnns_20231224_daily_v1_lit.raw')
+    plot_2d_network_points(bk_plot, nldn_data, c=[0, 10, 5], cmap='plasma', vmin=0, vmax=10)
+    return bk_plot.fig
+
+
 @pytest.mark.mpl_image_compare
 def test_plot_feature_entln_real_height():
     start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
@@ -157,6 +176,7 @@ def test_plot_feature_entln_real_height():
     entln_data = lma_read.entln('examples/network_samples/lxarchive_pulse20231224.csv')
     plot_2d_network_points(bk_plot, entln_data, actual_height=entln_data['icheight'])
     return bk_plot.fig
+
 
 @pytest.mark.mpl_image_compare
 def test_plot_feature_ndln_polarity():
