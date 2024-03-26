@@ -151,41 +151,41 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
     marker = kwargs.pop('marker', '^')
     if actual_height is not None:
         netw_data['height'] = actual_height
+
+    if plot_c is not None:
+        netw_data['plot_c'] = plot_c
+    elif color_by == 'time':
+        netw_data['plot_c'] = color_by_time(netw_data.datetime, bk_plot.tlim)[2]
+    elif color_by == 'polarity':
+        pass
+    else:
+        raise ValueError("color_by must be 'time' or 'polarity'")
+    
     cgs = netw_data[netw_data['type']=='CG']
     ics = netw_data[netw_data['type']=='IC']
+
     if actual_height is None:
         cgs['height'] = np.full_like(cgs.longitude, fake_cg_height)
         ics['height'] = np.full_like(ics.longitude, fake_ic_height)
     art_out = []
-    if plot_c is None:
-        if color_by == 'time':
-            vmin, vmax, plot_c_cg = color_by_time(cgs.datetime, bk_plot.tlim)
-            art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, cgs.height,
-                        cgs.datetime, c=plot_c_cg, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
-            vmin, vmax, plot_c_ic = color_by_time(ics.datetime, bk_plot.tlim)
-            art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
-                        ics.datetime, c=plot_c_ic, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
-        elif color_by == 'polarity':
-            cgpos = cgs[cgs.peak_current_kA>0]
-            cgneg = cgs[cgs.peak_current_kA<0]
-            icpos = ics[ics.peak_current_kA>0]
-            icneg = ics[ics.peak_current_kA<0]
-            art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, cgneg.height,
-                        cgneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, cgpos.height,
-                        cgpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, icneg.height,
-                        icneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, icpos.height,
-                        icpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
-        else:
-            raise ValueError("color_by must be 'time' or 'polarity'")
+    if color_by == 'polarity':
+        cgpos = cgs[cgs.peak_current_kA>0]
+        cgneg = cgs[cgs.peak_current_kA<0]
+        icpos = ics[ics.peak_current_kA>0]
+        icneg = ics[ics.peak_current_kA<0]
+        art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, cgneg.height,
+                    cgneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, cgpos.height,
+                    cgpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, icneg.height,
+                    icneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, icpos.height,
+                    icpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
     else:
         art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, cgs.height,
-                    cgs.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
+                    cgs.datetime, c=cgs.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
         art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
-                    ics.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
-
+                    ics.datetime, c=ics.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
     return art_out
 
 
