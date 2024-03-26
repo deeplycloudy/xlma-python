@@ -220,6 +220,116 @@ def to_dataset(lma_file, event_id_start=0):
     return ds
 
 
+def nldn(filenames):
+    """
+    Read Viasala NLDN data
+     
+    Reads in one or multiple NLDN files and and returns a pandas dataframe with appropriate column names
+
+
+    Parameters
+    ----------
+    filenames : str or list of str
+        The file or files to read in
+    
+    
+    Returns
+    -------
+    full_df : `pandas.DataFrame`
+        A pandas dataframe of entln data, with columns:
+        'latitude' - the latitude of the event
+        'longitude' - the longitude of the event
+        'peak_current_kA' - the peak current in kA
+        'multiplicity' - the number of strokes in the event
+        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+        'ellipseangle' - the angle of the 50% confidence ellipse
+        'chi2' - the reduced chi-squared value of the event
+        'num_stations' - the number of stations contributing to the event
+        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        'datetime' - the time of the event
+
+        
+    Notes
+    -----
+    This function is designed to read NLDN files in the format that matches the format of the file located
+    in examples/network_samples/gld360enldnns_20231224_daily_v1_lit.raw (This is not real NLDN data, but provides a correct sample of the format)
+
+    Other file formats may exist and may not be read in correctly. If you have a file that is not read in correctly,
+    please open an issue on the pyxlma GitHub page.
+    """
+    if type(filenames) is str:
+        filenames = [filenames]
+    full_df = pd.DataFrame({})
+    for filename in filenames:
+        this_file = pd.read_csv(filename, delim_whitespace=True, header=None, 
+                    names=[
+                        'date', 'time', 'latitude', 'longitude', 'peak_current_kA', 'curr_unit', 'multiplicity', 'semimajor',
+                        'semiminor', 'majorminorratio', 'ellipseangle', 'chi2', 'num_stations', 'type'
+                        ])
+        if len(this_file['curr_unit'].drop_duplicates()) == 1:
+            this_file.drop(columns=['curr_unit'], inplace=True)
+        else:
+            raise ValueError('Multiple current units in file')
+        this_file['datetime'] = pd.to_datetime(this_file['date']+' '+this_file['time'], format='%m/%d/%y %H:%M:%S.%f')
+        this_file.drop(columns=['date','time'], inplace=True)
+        this_file['type'] = this_file['type'].map({'G':'CG','C':'IC'})
+        full_df = pd.concat([full_df, this_file])
+    return full_df
+
+
+def entln(filenames):
+    """
+    Read Earth Networks Total Lightning Network data
+     
+    Reads in one or multiple ENTLN files and and returns a pandas dataframe with appropriate column names
+
+
+    Parameters
+    ----------
+    filenames : str or list of str
+        The file or files to read in
+    
+    
+    Returns
+    -------
+    full_df : `pandas.DataFrame`
+        A pandas dataframe of entln data, with columns:
+        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        'datetime' - the time of the event
+        'latitude' - the latitude of the event
+        'longitude' - the longitude of the event
+        'peak_current_kA' - the peak current in kA
+        'icheight' - the height of the IC event in meters
+        'num_stations' - the number of stations contributing to the event
+        'ellipseangle' - the angle of the 50% confidence ellipse
+        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+
+    Notes
+    -----
+    This function is designed to read ENTLN files in the format that matches the format of the file located
+    in examples/network_samples/lxarchive_pulse20231224.csv (This is not real ENTLN data, but provides a correct sample of the format)
+
+    Other file formats may exist and may not be read in correctly. If you have a file that is not read in correctly,
+    please open an issue on the pyxlma GitHub page.
+    """
+    if type(filenames) is str:
+        filenames = [filenames]
+    full_df = pd.DataFrame({})
+    for filename in filenames:
+        this_file = pd.read_csv(filename, parse_dates=['timestamp'])
+        this_file['peakcurrent'] = this_file['peakcurrent']/1000
+        this_file['type'] = this_file['type'].map({0:'CG',1:'IC'})
+        this_file['semimajor'] = this_file['majoraxis']/2000
+        this_file['semiminor'] = this_file['minoraxis']/2000
+        this_file.drop(columns=['majoraxis','minoraxis'], inplace=True)
+        rename = {'timestamp' : 'datetime', 'peakcurrent' : 'peak_current_kA', 'numbersensors' : 'num_stations', 'bearing' : 'ellipseangle'}
+        this_file.rename(columns=rename, inplace=True)
+        full_df = pd.concat([full_df, this_file])
+    return full_df
+
+    
 class lmafile(object):
     def __init__(self,filename):
         """
