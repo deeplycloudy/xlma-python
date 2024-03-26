@@ -112,24 +112,36 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     return art_out
 
 
-def plot_2d_network_points(bk_plot, netw_data, fake_ic_height=18, fake_cg_height=1,
+def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_height=18, fake_cg_height=1,
                         color_by='time', pos_color='red', neg_color='blue', **kwargs):
     """
     Plot points from a 2D lightning mapping neworks (ie, NLDN, ENTLN, etc)
 
-    Parameters:
-    bk_plot: an existing pyxlma.plot.xlma_base_plot.BlankPlot object
-    netw_data: a pandas or xarray data object with columns/variables
-        'longitude', 'latitude', 'type' (CG/IC), and 'datetime'
-    fake_ic_height: the altitude to plot IC points (default 18 km)
-    fake_cg_height: the altitude to plot CG points (default 1 km)
-    color_by: 'time' or 'polarity' (default 'time'). Ignored if **kwargs contains 'c'
-    pos_color: color for positive points (default 'red') if color_by='polarity'
-    neg_color: color for negative points (default 'blue') if color_by='polarity'
-    **kwargs: additional keyword arguments to pass to plt.scatter
+    Parameters
+    ----------
+    bk_plot : `pyxlma.plot.xlma_base_plot.BlankPlot`
+        A BlankPlot object to plot the data on
+    netw_data : `pandas.DataFrame` or `xarray.Dataset`
+        data object with columns/variables 'longitude', 'latitude', 'type' (CG/IC), and 'datetime'
+    actual_height : `numpy.ndarray` or `pandas.Series` or `xarray.DataArray`
+        the hieghts of the events to be plotted (default None, fake_ic_height and fake_cg_height used)
+    fake_ic_height : float
+        the altitude to plot IC points (default 18 km)
+    fake_cg_height : float
+        the altitude to plot CG points (default 1 km)
+    color_by : ['time', 'polarity']
+        Whether to color the points by time or polarity. Default 'time'. Ignored if **kwargs contains 'c'.
+    pos_color : str
+        color for positive points (default 'red') if color_by='polarity'
+    neg_color : str
+        color for negative points (default 'blue') if color_by='polarity'
+    **kwargs
+        additional keyword arguments to pass to plt.scatter
 
-    Returns:
-    art_out: nested lists of artists created by plot_points (first list CG, second list IC)
+    Returns
+    -------
+    art_out : list
+        nested lists of artists created by plot_points (first list CG, second list IC)
 
     """
 

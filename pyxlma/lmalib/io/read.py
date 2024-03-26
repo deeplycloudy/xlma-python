@@ -222,7 +222,32 @@ def to_dataset(lma_file, event_id_start=0):
 
 def nldn(filenames):
     """
-    Read Viasala NLDN file and return a pandas dataframe with appropriate column names
+    Read Viasala NLDN data
+     
+    Reads in one or multiple NLDN files and and returns a pandas dataframe with appropriate column names
+
+
+    Parameters
+    ----------
+    filenames : str or list of str
+        The file or files to read in
+    
+    
+    Returns
+    -------
+    full_df : `pandas.DataFrame`
+        A pandas dataframe of entln data, with columns:
+        'latitude' - the latitude of the event
+        'longitude' - the longitude of the event
+        'peak_current_kA' - the peak current in kA
+        'multiplicity' - the number of strokes in the event
+        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+        'ellipseangle' - the angle of the 50% confidence ellipse
+        'chi2' - the reduced chi-squared value of the event
+        'num_stations' - the number of stations contributing to the event
+        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        'datetime' - the time of the event
     """
     if type(filenames) is str:
         filenames = [filenames]
@@ -246,7 +271,31 @@ def nldn(filenames):
 
 def entln(filenames):
     """
-    Read Earth Networks Total Lightning Network file and return a pandas dataframe with appropriate column names
+    Read Earth Networks Total Lightning Network data
+     
+    Reads in one or multiple ENTLN files and and returns a pandas dataframe with appropriate column names
+
+
+    Parameters
+    ----------
+    filenames : str or list of str
+        The file or files to read in
+    
+    
+    Returns
+    -------
+    full_df : `pandas.DataFrame`
+        A pandas dataframe of entln data, with columns:
+        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        'datetime' - the time of the event
+        'latitude' - the latitude of the event
+        'longitude' - the longitude of the event
+        'peak_current_kA' - the peak current in kA
+        'icheight' - the height of the IC event in meters
+        'num_stations' - the number of stations contributing to the event
+        'ellipseangle' - the angle of the 50% confidence ellipse
+        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
     """
     if type(filenames) is str:
         filenames = [filenames]
