@@ -137,36 +137,41 @@ def plot_2d_network_points(bk_plot, netw_data, fake_ic_height=18, fake_cg_height
     vmin = kwargs.pop('vmin', None)
     vmax = kwargs.pop('vmax', None)
     marker = kwargs.pop('marker', '^')
+    if actual_height is not None:
+        netw_data['height'] = actual_height
     cgs = netw_data[netw_data['type']=='CG']
     ics = netw_data[netw_data['type']=='IC']
+    if actual_height is None:
+        cgs['height'] = np.full_like(cgs.longitude, fake_cg_height)
+        ics['height'] = np.full_like(ics.longitude, fake_ic_height)
     art_out = []
     if plot_c is None:
         if color_by == 'time':
             vmin, vmax, plot_c_cg = color_by_time(cgs.datetime, bk_plot.tlim)
-            art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, np.full_like(cgs.longitude.values, fake_cg_height),
+            art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, cgs.height,
                         cgs.datetime, c=plot_c_cg, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
             vmin, vmax, plot_c_ic = color_by_time(ics.datetime, bk_plot.tlim)
-            art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, np.full_like(ics.longitude.values, fake_ic_height),
+            art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
                         ics.datetime, c=plot_c_ic, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
         elif color_by == 'polarity':
             cgpos = cgs[cgs.peak_current_kA>0]
             cgneg = cgs[cgs.peak_current_kA<0]
             icpos = ics[ics.peak_current_kA>0]
             icneg = ics[ics.peak_current_kA<0]
-            art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, np.full_like(cgneg.longitude.values, fake_cg_height),
+            art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, cgneg.height,
                         cgneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, np.full_like(cgpos.longitude.values, fake_cg_height),
+            art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, cgpos.height,
                         cgpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, np.full_like(icneg.longitude.values, fake_ic_height),
+            art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, icneg.height,
                         icneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
-            art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, np.full_like(icpos.longitude.values, fake_ic_height),
+            art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, icpos.height,
                         icpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
         else:
             raise ValueError("color_by must be 'time' or 'polarity'")
     else:
-        art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, np.full_like(cgs.longitude.values, fake_cg_height),
+        art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, cgs.height,
                     cgs.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
-        art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, np.full_like(ics.longitude.values, fake_ic_height),
+        art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
                     ics.datetime, c=plot_c, vmin=vmin, vmax=vmax, marker=marker, **kwargs))
 
     return art_out
