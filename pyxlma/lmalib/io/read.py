@@ -248,6 +248,15 @@ def nldn(filenames):
         'num_stations' - the number of stations contributing to the event
         'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
         'datetime' - the time of the event
+
+        
+    Notes
+    -----
+    This function is designed to read NLDN files in the format that matches the format of the file located
+    in examples/network_samples/gld360enldnns_20231224_daily_v1_lit.raw (This is not real NLDN data, but provides a correct sample of the format)
+
+    Other file formats may exist and may not be read in correctly. If you have a file that is not read in correctly,
+    please open an issue on the pyxlma GitHub page.
     """
     if type(filenames) is str:
         filenames = [filenames]
@@ -296,6 +305,14 @@ def entln(filenames):
         'ellipseangle' - the angle of the 50% confidence ellipse
         'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
         'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+
+    Notes
+    -----
+    This function is designed to read ENTLN files in the format that matches the format of the file located
+    in examples/network_samples/lxarchive_pulse20231224.csv (This is not real ENTLN data, but provides a correct sample of the format)
+
+    Other file formats may exist and may not be read in correctly. If you have a file that is not read in correctly,
+    please open an issue on the pyxlma GitHub page.
     """
     if type(filenames) is str:
         filenames = [filenames]
