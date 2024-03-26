@@ -255,7 +255,10 @@ def entln(filenames):
         this_file = pd.read_csv(filename, parse_dates=['timestamp'])
         this_file['peakcurrent'] = this_file['peakcurrent']/1000
         this_file['type'] = this_file['type'].map({0:'CG',1:'IC'})
-        rename = {'timestamp' : 'datetime', 'peakcurrent' : 'peak_current_kA', 'sensors' : ''}
+        this_file['semimajor'] = this_file['majoraxis']/2000
+        this_file['semiminor'] = this_file['minoraxis']/2000
+        this_file.drop(columns=['majoraxis','minoraxis'], inplace=True)
+        rename = {'timestamp' : 'datetime', 'peakcurrent' : 'peak_current_kA', 'numbersensors' : 'num_stations', 'bearing' : 'ellipseangle'}
         this_file.rename(columns=rename, inplace=True)
         full_df = pd.concat([full_df, this_file])
     return full_df
