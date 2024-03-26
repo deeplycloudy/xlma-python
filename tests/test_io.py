@@ -42,3 +42,19 @@ def test_read_nldn():
         'datetime' : [np.datetime64('2023-12-24T00:57:01.123456789'), np.datetime64('2023-12-24T00:57:31.987654321'), np.datetime64('2023-12-24T00:57:58.135792468')]
     })
     assert dataset.equals(truth)
+
+def test_read_entln():
+    dataset = lma_read.entln('examples/network_samples/lxarchive_pulse20231224.csv')
+    truth = pd.DataFrame({
+        'type': ['IC', 'CG', 'IC'],
+        'datetime' : [np.datetime64('2023-12-24T00:57:04.123456789'), np.datetime64('2023-12-24T00:57:26.987654321'), np.datetime64('2023-12-24T00:57:47.246813579')],
+        'latitude' : [33.581914, 33.590077, 33.584480],
+        'longitude' : [-101.880986, -102.032033, -101.871498],
+        'peak_current_kA' : [12.345, 9.876, 15.79],
+        'icheight' : [3014, 6028, 13591],
+        'num_stations': [8, 7, 11],
+        'ellipseangle' : [104., 99., 102.],
+        'semimajor': [0.1855, 0.3465, 0.089],
+        'semiminor': [0.029, 0.054, 0.031]
+    })
+    assert dataset.equals(truth)
