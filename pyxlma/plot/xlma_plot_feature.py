@@ -63,7 +63,7 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
                   plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face',
-                  edge_width=0, add_to_histogram=True, **kwargs):
+                  edge_width=0, add_to_histogram=True, marker='o', **kwargs):
     """
     Plot scatter points on an existing bk_plot object given x,y,z,t for each
     and defined plotting colormaps and ranges
@@ -88,16 +88,16 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
     
     art_plan = bk_plot.ax_plan.scatter(lon_data, lat_data,
                             c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                            s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                            s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_th = bk_plot.ax_th.scatter(time_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lon = bk_plot.ax_lon.scatter(lon_data, alt_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o',  linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_lat = bk_plot.ax_lat.scatter(alt_data, lat_data,
                           c=plot_c,vmin=plot_vmin, vmax=plot_vmax, cmap=plot_cmap,
-                          s=plot_s,marker='o', linewidths=edge_width, edgecolors=edge_color, **kwargs)
+                          s=plot_s, marker=marker, linewidths=edge_width, edgecolors=edge_color, **kwargs)
     art_out = [art_plan, art_th, art_lon, art_lat]
 
     if add_to_histogram:
@@ -110,6 +110,84 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
         art_out.append(art_txt)
         art_out.append(art_hist)
     return art_out
+
+
+def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_height=18, fake_cg_height=1,
+                        color_by='time', pos_color='red', neg_color='blue', **kwargs):
+    """
+    Plot points from a 2D lightning mapping neworks (ie, NLDN, ENTLN, etc)
+
+    Parameters
+    ----------
+    bk_plot : `pyxlma.plot.xlma_base_plot.BlankPlot`
+        A BlankPlot object to plot the data on
+    netw_data : `pandas.DataFrame` or `xarray.Dataset`
+        data object with columns/variables 'longitude', 'latitude', 'type' (CG/IC), and 'datetime'
+    actual_height : `numpy.ndarray` or `pandas.Series` or `xarray.DataArray`
+        the hieghts of the events to be plotted (default None, fake_ic_height and fake_cg_height used)
+    fake_ic_height : float
+        the altitude to plot IC points (default 18 km)
+    fake_cg_height : float
+        the altitude to plot CG points (default 1 km)
+    color_by : ['time', 'polarity']
+        Whether to color the points by time or polarity. Default 'time'. Ignored if **kwargs contains 'c'.
+    pos_color : str
+        color for positive points (default 'red') if color_by='polarity'
+    neg_color : str
+        color for negative points (default 'blue') if color_by='polarity'
+    **kwargs
+        additional keyword arguments to pass to plt.scatter
+
+    Returns
+    -------
+    art_out : list
+        nested lists of artists created by plot_points (first list CG, second list IC)
+
+    """
+
+    plot_c = kwargs.pop('c', None)
+    vmin = kwargs.pop('vmin', None)
+    vmax = kwargs.pop('vmax', None)
+    marker = kwargs.pop('marker', '^')
+    if actual_height is not None:
+        netw_data['height'] = actual_height
+
+    if plot_c is not None:
+        netw_data['plot_c'] = plot_c
+    elif color_by == 'time':
+        netw_data['plot_c'] = color_by_time(netw_data.datetime, bk_plot.tlim)[2]
+    elif color_by == 'polarity':
+        pass
+    else:
+        raise ValueError("color_by must be 'time' or 'polarity'")
+    
+    cgs = netw_data[netw_data['type']=='CG']
+    ics = netw_data[netw_data['type']=='IC']
+
+    if actual_height is None:
+        cgs['height'] = np.full_like(cgs.longitude, fake_cg_height)
+        ics['height'] = np.full_like(ics.longitude, fake_ic_height)
+    art_out = []
+    if color_by == 'polarity':
+        cgpos = cgs[cgs.peak_current_kA>0]
+        cgneg = cgs[cgs.peak_current_kA<0]
+        icpos = ics[ics.peak_current_kA>0]
+        icneg = ics[ics.peak_current_kA<0]
+        art_out.append(plot_points(bk_plot, cgneg.longitude, cgneg.latitude, cgneg.height,
+                    cgneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, cgpos.longitude, cgpos.latitude, cgpos.height,
+                    cgpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, icneg.longitude, icneg.latitude, icneg.height,
+                    icneg.datetime, c=neg_color, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, icpos.longitude, icpos.latitude, icpos.height,
+                    icpos.datetime, c=pos_color, marker=marker, add_to_histogram=False, **kwargs))
+    else:
+        art_out.append(plot_points(bk_plot, cgs.longitude, cgs.latitude, cgs.height,
+                    cgs.datetime, c=cgs.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
+        art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
+                    ics.datetime, c=ics.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
+    return art_out
+
 
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
