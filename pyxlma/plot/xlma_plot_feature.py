@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
 import matplotlib.dates as md
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 
 def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
@@ -186,6 +189,78 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
                     cgs.datetime, c=cgs.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
         art_out.append(plot_points(bk_plot, ics.longitude, ics.latitude, ics.height,
                     ics.datetime, c=ics.plot_c, vmin=vmin, vmax=vmax, marker=marker, add_to_histogram=False, **kwargs))
+    return art_out
+
+
+def plot_glm_events(glm, bk_plot, fake_alt=19, **kwargs):
+    """
+    Plot event-level data from a glmtools dataset on a pyxlma.plot.xlma_base_plot.BlankPlot object.
+    Events that occupy the same pixel have their energies summed and plotted on the planview axis, event locations
+    are plotted on the lat/lon/time axes with an altitude specified as fake_alt.
+    Requires glmtools to be installed.
+
+    Parameters
+    ----------
+    glm : `xarray.Dataset`
+        A glmtools glm dataset to plot
+    bk_plot : `pyxlma.plot.xlma_base_plot.BlankPlot`
+        A BlankPlot object to plot the data on
+    fake_alt : float
+        the altitude to plot glm event points, in km
+    **kwargs
+        additional keyword arguments to be passed to matplotlib Polygon
+
+    Returns
+    -------
+    art_out : list
+        Handle to matplotlib polygon collection for the planview axis
+    """
+    from cartopy import crs as ccrs
+    from glmtools.io.glm import get_lutevents
+    from glmtools.io.ccd import load_pixel_corner_lookup, quads_from_corner_lookup
+    from glmtools.io.imagery import get_goes_imager_proj
+
+    unique_ds = get_lutevents(glm)
+    evrad = unique_ds.lutevent_energy
+
+    x_lut, y_lut, corner_lut = load_pixel_corner_lookup()
+    x_lut = x_lut * 1.0e-6
+    y_lut = y_lut * 1.0e-6
+    corner_lut = corner_lut*1e-6
+
+    event_polys = quads_from_corner_lookup(x_lut, y_lut, corner_lut,
+        unique_ds.lutevent_x, unique_ds.lutevent_y)
+
+    glm['lutevent_corner_x'] = xr.DataArray(event_polys[:,:,0], dims=['lutevent_id', 'number_of_corners'])
+    glm['lutevent_corner_y'] = xr.DataArray(event_polys[:,:,1], dims=['lutevent_id', 'number_of_corners'])
+
+    N_ev = evrad.shape[0]
+    cx = glm.lutevent_corner_x
+    cy = glm.lutevent_corner_y
+    proj_var = get_goes_imager_proj(glm.nominal_satellite_subpoint_lon.data)
+    globe = ccrs.Globe(semimajor_axis=proj_var.semi_major_axis, semiminor_axis=proj_var.semi_minor_axis)
+    proj = ccrs.Geostationary(central_longitude=proj_var.longitude_of_projection_origin,
+                              satellite_height=proj_var.perspective_point_height, globe=globe)
+    x = cx * proj_var.perspective_point_height
+    y = cy * proj_var.perspective_point_height
+    poly_verts = [np.vstack((x[i,:], y[i,:])).T for i in range(N_ev)]
+    if hasattr(bk_plot.ax_plan, 'projection'):
+        map_proj = bk_plot.ax_plan.projection
+    else:
+        map_proj = ccrs.PlateCarree()
+    transformed_pv = [map_proj.transform_points(proj,
+                                                this_poly_verts[:, 0],
+                                                this_poly_verts[:, 1])[:, 0:2]
+                                                for this_poly_verts in poly_verts]
+    patches = [Polygon(pv, closed=True, **kwargs) for pv in transformed_pv]
+    pc = PatchCollection(patches)
+    pc.set_array(evrad.data)
+    bk_plot.ax_plan.add_collection(pc)
+    fake_alts = np.full_like(glm.number_of_events, fake_alt)
+    th_handle = bk_plot.ax_th.scatter(glm.event_time_offset.data, fake_alts, c='y', marker='v', edgecolors='k')
+    lon_handle = bk_plot.ax_lon.scatter(glm.event_lon, fake_alts, c='y', marker='v', edgecolors='k')
+    lat_handle = bk_plot.ax_lat.scatter(fake_alts, glm.event_lat, c='y', marker='v', edgecolors='k')
+    art_out = [pc, th_handle, lon_handle, lat_handle]
     return art_out
 
 

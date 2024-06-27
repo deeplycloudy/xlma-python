@@ -35,6 +35,9 @@ Plotting:
 - cartopy
 - metpy (optionally, for US county lines)
 
+GLM Plotting:
+- glmtools (https://github.com/deeplycloudy/glmtools)
+
 Interactive:
 
 - jupyterlab (or, notebook)
