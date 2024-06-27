@@ -30,7 +30,7 @@ jobs:
         eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         micromamba install pytest-cov pytest-mpl xarray netcdf4 pandas numpy scikit-learn scipy pyproj cartopy metpy ipywidgets python=${{ matrix.python-version }} -c conda-forge
-        pip install git+https://github.com/deeplycloudy/glmtools
+        pip install git+https://github.com/deeplycloudy/glmtools@energy_threshold_util
         python -m pip install .
     - name: Test with pytest
       run: |
