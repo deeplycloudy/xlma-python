@@ -44,11 +44,12 @@ Interactive:
 - ipywidgets
 - ipympl
 
-Building:
+Building/Testing:
 
 - setuptools
 - pytest-cov
 - pytest-mpl
+- lmatools (https://github.com/deeplycloudy/lmatools)
 - ...and all of the above
 
 # Technical architecture
