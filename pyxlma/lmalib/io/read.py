@@ -37,6 +37,17 @@ def combine_datasets(lma_data):
         pyxlma.lmalib.io.cf_netcdf.new_dataset or
         pyxlma.lmalib.io.read.to_dataset
     """
+    def reorder_stations(dataset, index_mapping):
+        for var in dataset.data_vars:
+            if 'number_of_stations' in dataset[var].dims:
+                if var == 'station_code':
+                    new_station_codes = dataset[var].data.copy()
+                    new_station_codes = new_station_codes[index_mapping]
+                    dataset = dataset.assign(station_code=('number_of_stations', new_station_codes))
+                else:
+                    reordered_data = dataset[var].isel(number_of_stations=index_mapping)
+                    dataset[var].data = reordered_data.values
+        return dataset
     # Get a list of all the global attributes from each dataset
     attrs = [d.attrs for d in lma_data]
     # Create a dict of {attr_name: [list of values from each dataset]}
@@ -53,46 +64,153 @@ def combine_datasets(lma_data):
             final_attrs[k] = tuple(set_of_values)[0]
         else:
             final_attrs[k] = '; '.join(attr_vals)
-    # print(final_attrs)
+    # Get the station data from the first dataset and assign each station a unique index
+    lma_data[0]['station_code'] = lma_data[0].number_of_stations
+    lma_data[0]['number_of_stations'] = np.arange(len(lma_data[0].number_of_stations))
+    all_data = lma_data[0]
 
-    # Get just the pure-station variables
-    lma_station_data = xr.concat(
-        [d.drop_dims(['number_of_events']) for d in lma_data],
-        dim='number_of_files'
-    )
-    # print(lma_station_data)
+    # Set up a few arrays to keep track of all known stations
+    station_networks = all_data.station_network.data.copy()
+    station_codes = all_data.station_code.data.copy()
+    station_lats = all_data.station_latitude.data.copy()
+    station_lons = all_data.station_longitude.data.copy()
+    station_alts = all_data.station_altitude.data.copy()
 
-    # Get just the pure-event variables
-    lma_event_data = xr.concat(
-        [d.drop_dims(['number_of_stations']).drop(
-            ['network_center_latitude',
-             'network_center_longitude',
-             'network_center_altitude',]
-          ) for d in lma_data],
-        dim='number_of_events'
-    )
-    # print(lma_event_data)
+    # Check each subsequent dataset for new stations
+    for new_file_num in range(1, len(lma_data)):
+        new_file = lma_data[new_file_num]
+        # Demote station code to a data variable and assign an index to each station in the new file
+        new_file['station_code'] = new_file.number_of_stations
+        new_file['number_of_stations'] = np.arange(len(new_file.number_of_stations))
+        stations_in_file = []
+        # Check each station in the new file against all known stations
+        for station_num in range(len(new_file.number_of_stations.data)):
+            station = new_file.isel(number_of_stations=station_num)
+            matching_networks = station_networks == station.station_network.data
+            matching_station_code = station_codes == station.station_code.data
+            matching_lat = station_lats == station.station_latitude.data
+            matching_lon = station_lons == station.station_longitude.data
+            matching_alt = station_alts == station.station_altitude.data
+            # If the lat/lon/alt are the same, then the station is in the same location
+            matching_loc = matching_lat * matching_lon * matching_alt
+            matching_id = matching_networks * matching_station_code
+            matching = matching_id * matching_loc
+            # check for a single match in the previously-known stations
+            if sum(matching) == 1:
+                # station completely matches previous
+                previous_index = np.argmax(matching)
+                stations_in_file.append(previous_index)
+            elif sum(matching_id) == 1:
+                # station has moved geographically since previous
+                previous_index = np.argmax(matching_id)
+                # Update the global list of lat/lon/alts to reflect the move
+                station_lats[previous_index] = station.station_latitude.data
+                station_lons[previous_index] = station.station_longitude.data
+                station_alts[previous_index] = station.station_altitude.data
+                stations_in_file.append(previous_index)
+            elif sum(matching_loc) == 1:
+                # station was renamed since previous
+                previous_index = np.argmax(matching_loc)
+                # Update the global list of station identifying information to reflect the rename
+                station_networks[previous_index] = station.station_network.data
+                station_codes[previous_index] = station.station_code.data
+                stations_in_file.append(previous_index)
+            else:
+                # station is new
+                previous_index = -1
+                stations_in_file.append(previous_index)
+        # Find the indices of any newly-discovered stations
+        indices_of_new_stations = np.where(np.array(stations_in_file) == -1)[0]
+        # Add the new stations to the known stations
+        for idx_of_new_station in indices_of_new_stations:
+            new_station = new_file.isel(number_of_stations=idx_of_new_station)
+            # The new station is appended to the end of the known stations
+            new_station_index = len(all_data.number_of_stations)
+            # Expand all of the previous data to contain the new station. Fill with nan values for all previous times.
+            all_data = all_data.reindex({'number_of_stations': np.arange(new_station_index+1)}, fill_value=np.nan)
+            # Update the dimension coordinate to reflect the new station's addition
+            all_data['number_of_stations'] = ('number_of_stations', np.arange(new_station_index+1))
+            # Add the new station's information to the global list of known stations
+            station_networks = np.append(station_networks, new_station.station_network.data)
+            station_codes = np.append(station_codes, new_station.station_code.data)
+            station_lats = np.append(station_lats, new_station.station_latitude.data)
+            station_lons = np.append(station_lons, new_station.station_longitude.data)
+            station_alts = np.append(station_alts, new_station.station_altitude.data)
+            # Update the station index for the new station
+            stations_in_file[idx_of_new_station] = new_station_index
+        # Check for any previously-known stations that are no longer in the new file
+        for old_station_id in all_data.number_of_stations.data:
+            if old_station_id not in stations_in_file:
+                # a station has been removed, create a row of nan values for this file to indicate that the station is no longer present
+                # first create a temporary index for the dead station
+                temp_station_id = len(new_file.number_of_stations)
+                # fill the new row with nan values
+                new_file = new_file.reindex({'number_of_stations': np.arange(temp_station_id+1)}, fill_value=np.nan)
+                new_file['number_of_stations'] = ('number_of_stations', np.arange(temp_station_id+1))
+                # add the dead station to the list of stations from this file so that it is the same length as the all_data dataset
+                stations_in_file.append(temp_station_id)
+                # update the mapping of the dead station to the temporary index so that the data can be re-ordered
+                stations_in_file[old_station_id] = temp_station_id
+                stations_in_file[temp_station_id] = old_station_id
+        # Re-order the station data to match the order of the stations in the new file
+        # This can happen if lma_analysis decides to change the order of the stations, or if new stations are added or removed
+        new_file = reorder_stations(new_file, stations_in_file)
+        # Concatenate the new file's station information with the previously-known station information
+        lma_station_data = xr.concat(
+                [d.drop_dims(['number_of_events']) for d in [all_data, new_file]],
+                dim='number_of_files'
+            )
+        # Rebuild the event_contributing_stations array
+        event_contributing_stations = xr.concat(
+                [d['event_contributing_stations'] for d in [all_data, new_file]],
+                dim='number_of_events'
+            )
+        # Attach the event_contributing_stations array to the station dataset
+        lma_station_data['event_contributing_stations'] = event_contributing_stations
 
-    # Get any varaibles with joint dimensions,
-    # i.e., ('number_of_events', 'number_of_stations')
-    event_contributing_stations = xr.concat(
-        [d['event_contributing_stations'] for d in lma_data],
-        dim='number_of_events'
-    )
-    # print(event_contributing_stations)
-
-    # Find the mean of the station data, and then add back the event data
-    ds = xr.merge([lma_station_data.mean(dim='number_of_files'),
-                   lma_event_data],
-                  compat='equals')
-    # ... and then restore the contributing stations.
-    # Note the coordinate variables are being used as labels to ensure data remain aligned.
-    ds['event_contributing_stations'] = event_contributing_stations
-
-    # Restore the global attributes
-    ds.attrs.update(final_attrs)
-
-    return ds
+        # Combining the events is a simple concatenation. If only the stations had been this easy...
+        lma_event_data = xr.concat(
+            [d.drop_dims(['number_of_stations']).drop_vars(
+                ['network_center_latitude',
+                'network_center_longitude',
+                'network_center_altitude',
+                'file_start_time']
+            ) for d in [all_data, new_file]],
+            dim='number_of_events'
+        )
+        # merge all the data from this file with the previously-known data
+        combined_event_data = xr.merge([lma_station_data, lma_event_data])
+        all_data = combined_event_data
+    # Sort the data by file_start_time
+    all_data = all_data.sortby('file_start_time')
+    # Update the global attributes
+    all_data.attrs.update(final_attrs)
+    # To reduce complexity and resource usage, if the 'number_of_files' dimension is the same for all variables, then the dimension is unnecessary
+    all_the_same = True
+    # These variables are expected to change between files, so they are not checked for equality
+    expected_to_change = ['station_event_fraction', 'station_power_ratio', 'file_start_time']
+    for var in all_data.data_vars:
+        if var in expected_to_change:
+            continue
+        if 'number_of_files' in all_data[var].dims:
+            if (all_data[var] == all_data[var].isel(number_of_files=0)).all():
+                pass
+            else:
+                all_the_same = False
+    # If all of the variables are the same for all files, remove the 'number_of_files' dimension.
+    if all_the_same:
+        # Some variables need to be averaged
+        mean_data = all_data.mean(dim='number_of_files')
+        # ...but most can just be copied over (this is necessary because some are strings which can't be averaged)
+        all_data = all_data.isel(number_of_files=0)
+        # the file_start_time variable is not needed in the reduced dataset
+        all_data = all_data.drop_vars(['file_start_time'])
+        # replace the copied variables with the averaged variables where necessary
+        for var in expected_to_change:
+            if var == 'file_start_time':
+                continue
+            all_data[var] = mean_data[var]
+    return all_data
 
 def dataset(filenames, sort_time=True):
     """ Create an xarray dataset of the type returned by
@@ -127,15 +245,13 @@ def dataset(filenames, sort_time=True):
         # the dimension name, too.
         resetted = ('number_of_events_', 'number_of_stations_')
         ds = ds.reset_coords(resetted)
-        ds = ds.rename({resetted[0]:'event_id',
-                        resetted[1]:'station_code'})
+        ds = ds.rename({resetted[0]:'event_id'})
     else:
         # The approach for newer xarray versions requires we explicitly rename only the variables.
         # The generic "rename" in the block above renames vars, coords, and dims.
         resetted = ('number_of_events', 'number_of_stations')
         ds = ds.reset_coords(resetted)
-        ds = ds.rename_vars({resetted[0]:'event_id',
-                        resetted[1]:'station_code'})
+        ds = ds.rename_vars({resetted[0]:'event_id'})
     if sort_time:
         ds = ds.sortby('event_time')
     return ds, starttime
@@ -203,7 +319,7 @@ def to_dataset(lma_file, event_id_start=0):
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
     ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
     ds.attrs['original_filename'] =  path.basename(lma_file.file)
-
+    ds['file_start_time'] = starttime
     # -- Populate the station mask information --
     # int, because NetCDF doesn't have booleans
     station_mask_bools = np.zeros((N_events, N_stations), dtype='int8')
