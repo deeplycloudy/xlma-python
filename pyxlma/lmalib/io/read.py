@@ -181,8 +181,6 @@ def combine_datasets(lma_data):
         # merge all the data from this file with the previously-known data
         combined_event_data = xr.merge([lma_station_data, lma_event_data])
         all_data = combined_event_data
-    # Sort the data by file_start_time
-    all_data = all_data.sortby('file_start_time')
     # Update the global attributes
     all_data.attrs.update(final_attrs)
     # To reduce complexity and resource usage, if the 'number_of_files' dimension is the same for all variables, then the dimension is unnecessary
@@ -236,6 +234,10 @@ def dataset(filenames, sort_time=True):
         except:
             raise
     ds = combine_datasets(lma_data)
+    if sort_time:
+        ds = ds.sortby('event_time')
+        if 'file_start_time' in ds.dims:
+            ds = ds.sortby('file_start_time')
     ds = ds.reset_index(('number_of_events', 'number_of_stations'))
     if 'number_of_events_' in ds.coords:
         # Older xarray versions appended a trailing underscore. reset_coords then dropped
@@ -252,8 +254,6 @@ def dataset(filenames, sort_time=True):
         resetted = ('number_of_events', 'number_of_stations')
         ds = ds.reset_coords(resetted)
         ds = ds.rename_vars({resetted[0]:'event_id'})
-    if sort_time:
-        ds = ds.sortby('event_time')
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
