@@ -113,7 +113,7 @@ def dataset(filenames, sort_time=True):
             ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
                 {'number_of_stations':'station_code', 'number_of_events':'event_id'})
             lma_data.append(ds)
-            next_event_id += ds.dims['number_of_events']
+            next_event_id += ds.sizes['number_of_events']
         except:
             raise
     ds = combine_datasets(lma_data)
