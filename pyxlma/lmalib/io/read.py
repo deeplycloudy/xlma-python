@@ -128,6 +128,20 @@ def combine_datasets(lma_data):
             new_station_index = len(all_data.number_of_stations)
             # Expand all of the previous data to contain the new station. Fill with nan values for all previous times.
             all_data = all_data.reindex({'number_of_stations': np.arange(new_station_index+1)}, fill_value=np.nan)
+            for var in all_data.data_vars:
+                if 'number_of_stations' in all_data[var].dims:
+                    if var in ['station_event_fraction', 'station_power_ratio', 'station_active', 'event_contributing_stations']:
+                        val_to_fill = 0
+                    else:
+                        val_to_fill = new_station[var].data.item()
+                    if all_data[var].data.dtype != 'object':
+                        filled_data = np.nan_to_num(all_data[var].data, copy=True, nan=val_to_fill)
+                    else:
+                        filled_data = all_data[var].data.copy().astype(new_station[var].data.dtype)
+                        for i in np.ndindex(filled_data.shape):
+                            if filled_data[i] == np.array([np.nan]).astype(new_station[var].data.dtype)[0]:
+                                filled_data[i] = val_to_fill
+                    all_data[var].data = filled_data
             # Update the dimension coordinate to reflect the new station's addition
             all_data['number_of_stations'] = ('number_of_stations', np.arange(new_station_index+1))
             # Add the new station's information to the global list of known stations
@@ -146,6 +160,18 @@ def combine_datasets(lma_data):
                 temp_station_id = len(new_file.number_of_stations)
                 # fill the new row with nan values
                 new_file = new_file.reindex({'number_of_stations': np.arange(temp_station_id+1)}, fill_value=np.nan)
+                for var in new_file.data_vars:
+                    if var == 'number_of_stations':
+                        continue
+                    if 'number_of_stations' in new_file[var].dims:
+                        if var in ['station_event_fraction', 'station_power_ratio', 'station_active', 'event_contributing_stations']:
+                            val_to_fill = 0
+                            filled_data = np.nan_to_num(new_file[var].data, copy=True, nan=val_to_fill)
+                            new_file[var].data = filled_data
+                        else:
+                            new_file[var].data[temp_station_id] = all_data[var].isel(number_of_stations=old_station_id, number_of_files=-1).data.item()
+                            val_to_fill = all_data[var].isel(number_of_stations=old_station_id).data
+                            val_to_fill = val_to_fill[0]
                 new_file['number_of_stations'] = ('number_of_stations', np.arange(temp_station_id+1))
                 # add the dead station to the list of stations from this file so that it is the same length as the all_data dataset
                 stations_in_file.append(temp_station_id)
