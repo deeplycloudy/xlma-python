@@ -335,6 +335,11 @@ def new_template_dataset():
     'long_name': "<P/P_m>"},
    'dtype': 'float32',
    },
+   'station_active': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': np.nan,
+    'long_name': "Station active flag"},
+   'dtype': '|S2',
+   },
 
  }}
  return __template_dataset
