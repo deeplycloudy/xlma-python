@@ -279,6 +279,7 @@ def to_dataset(lma_file, event_id_start=0):
         'station_altitude':'Alt',
         'station_event_fraction':'sources',
         'station_power_ratio':'<P/P_m>',
+        'station_active':'active',
     }
     event_mapping = {
         'event_latitude':'lat',
@@ -335,6 +336,11 @@ def to_dataset(lma_file, event_id_start=0):
         station_mask_bools[:, i] = lma_data[col]
     ds['event_contributing_stations'][:] = station_mask_bools
 
+    # -- Convert the station_active flag to a psuedo-boolean --
+    station_active_data = np.zeros(N_stations, dtype='int8')
+    station_active_data[ds.station_active.data == b'A'] = 1
+    station_active_data[ds.station_active.data == b'NA'] = 0
+    ds.station_active.data = station_active_data
     return ds
 
 
