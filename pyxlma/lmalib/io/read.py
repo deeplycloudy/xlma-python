@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import gzip
 import datetime as dt
+from os import path
 
 class open_gzip_or_dat:
     def __init__(self, filename):
@@ -201,6 +202,7 @@ def to_dataset(lma_file, event_id_start=0):
     ds.attrs['history'] = "LMA source file created "+lma_file.file_created
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
     ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
+    ds.attrs['original_filename'] =  path.basename(lma_file.file)
 
     # -- Populate the station mask information --
     # int, because NetCDF doesn't have booleans
@@ -361,7 +363,7 @@ class lmafile(object):
                     file_created = line.decode().split(':')[1:]
                     self.file_created = ':'.join(file_created)[:-1]
                 if line.startswith(b'Location:'):
-                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1]
+                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1].replace(' ','')
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
