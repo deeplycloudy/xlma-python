@@ -210,30 +210,31 @@ def combine_datasets(lma_data):
     # Update the global attributes
     all_data.attrs.update(final_attrs)
     # To reduce complexity and resource usage, if the 'number_of_files' dimension is the same for all variables, then the dimension is unnecessary
-    all_the_same = True
-    # These variables are expected to change between files, so they are not checked for equality
-    expected_to_change = ['station_event_fraction', 'station_power_ratio', 'file_start_time']
-    for var in all_data.data_vars:
-        if var in expected_to_change:
-            continue
-        if 'number_of_files' in all_data[var].dims:
-            if (all_data[var] == all_data[var].isel(number_of_files=0)).all():
-                pass
-            else:
-                all_the_same = False
-    # If all of the variables are the same for all files, remove the 'number_of_files' dimension.
-    if all_the_same:
-        # Some variables need to be averaged
-        mean_data = all_data.mean(dim='number_of_files')
-        # ...but most can just be copied over (this is necessary because some are strings which can't be averaged)
-        all_data = all_data.isel(number_of_files=0)
-        # the file_start_time variable is not needed in the reduced dataset
-        all_data = all_data.drop_vars(['file_start_time'])
-        # replace the copied variables with the averaged variables where necessary
-        for var in expected_to_change:
-            if var == 'file_start_time':
+    if 'number_of_files' in all_data.dims:
+        all_the_same = True
+        # These variables are expected to change between files, so they are not checked for equality
+        expected_to_change = ['station_event_fraction', 'station_power_ratio', 'file_start_time']
+        for var in all_data.data_vars:
+            if var in expected_to_change:
                 continue
-            all_data[var] = mean_data[var]
+            if 'number_of_files' in all_data[var].dims:
+                if (all_data[var] == all_data[var].isel(number_of_files=0)).all():
+                    pass
+                else:
+                    all_the_same = False
+        # If all of the variables are the same for all files, remove the 'number_of_files' dimension.
+        if all_the_same:
+            # Some variables need to be averaged
+            mean_data = all_data.mean(dim='number_of_files')
+            # ...but most can just be copied over (this is necessary because some are strings which can't be averaged)
+            all_data = all_data.isel(number_of_files=0)
+            # the file_start_time variable is not needed in the reduced dataset
+            all_data = all_data.drop_vars(['file_start_time'])
+            # replace the copied variables with the averaged variables where necessary
+            for var in expected_to_change:
+                if var == 'file_start_time':
+                    continue
+                all_data[var] = mean_data[var]
     return all_data
 
 def dataset(filenames, sort_time=True):
