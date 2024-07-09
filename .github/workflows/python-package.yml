@@ -32,7 +32,7 @@ jobs:
         init-shell: bash
     - name: Test with pytest
       run: |
-        micromamba activate base
+        micromamba activate pyxlma-tests
         coverage run --source=pyxlma -m pytest --mpl --mpl-baseline-path=tests/truth/images/ --mpl-generate-summary=html,json --mpl-results-path=tests/mpl-results/ tests/
         coverage xml
     - name: Upload coverage reports to Codecov
