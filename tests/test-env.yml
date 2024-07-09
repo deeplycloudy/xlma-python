@@ -15,4 +15,4 @@ dependencies:
 - ipywidgets
 - pip:
   - git+https://github.com/deeplycloudy/lmatools
-  - -e .
+  - -e ../

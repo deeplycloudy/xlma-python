@@ -29,6 +29,7 @@ jobs:
       with:
         environment-file: tests/test-env.yml
         create-args: python=${{ matrix.python-version }}
+        init-shell: bash
     - name: Test with pytest
       run: |
         eval "$(micromamba shell hook --shell bash)"
