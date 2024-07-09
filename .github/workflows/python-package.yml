@@ -32,7 +32,6 @@ jobs:
         init-shell: bash
     - name: Test with pytest
       run: |
-        eval "$(micromamba shell hook --shell bash)"
         micromamba activate base
         coverage run --source=pyxlma -m pytest --mpl --mpl-baseline-path=tests/truth/images/ --mpl-generate-summary=html,json --mpl-results-path=tests/mpl-results/ tests/
         coverage xml
