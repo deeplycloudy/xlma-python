@@ -20,7 +20,6 @@ def test_geographic():
     geosys = GeographicSystem()
     ecef_coords = geosys.toECEF(test_lons, test_lats, test_alts)
     lons, lats, alts = geosys.fromECEF(*ecef_coords)
-
     assert np.allclose(ecef_coords[0], test_ecef_X)
     assert np.allclose(ecef_coords[1], test_ecef_Y)
     assert np.allclose(ecef_coords[2], test_ecef_Z)
@@ -32,7 +31,6 @@ def test_geographic_one_point():
     geosys = GeographicSystem()
     ecef_coords = geosys.toECEF(np.atleast_1d(test_lons[-1]), np.atleast_1d(test_lats[-1]), np.atleast_1d(test_alts[-1]))
     lons, lats, alts = geosys.fromECEF(*ecef_coords)
-
     assert np.allclose(ecef_coords[0], test_ecef_X[-1])
     assert np.allclose(ecef_coords[1], test_ecef_Y[-1])
     assert np.allclose(ecef_coords[2], test_ecef_Z[-1])
