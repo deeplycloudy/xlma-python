@@ -1,8 +1,7 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import Delaunay, ConvexHull
+from scipy.spatial import Delaunay, ConvexHull, QhullError
 from scipy.special import factorial
-from scipy.spatial.qhull import QhullError
 from pyxlma.lmalib.traversal import OneToManyTraversal
 
 def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
