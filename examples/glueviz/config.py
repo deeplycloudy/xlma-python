@@ -21,7 +21,7 @@ from pyxlma.lmalib.io.read import lmafile
 #             return line_no
 #
 #     def readfile(self):
-#         lmad = pd.read_csv(self.file,delim_whitespace=True,header=None,
+#         lmad = pd.read_csv(self.file,sep='\\s+',header=None,
 #                                           compression='gzip',skiprows=self.datastart()+1)
 #         columns = ['time','lat','lon','alt','chi','p','mask']
 #         lmad.columns = columns

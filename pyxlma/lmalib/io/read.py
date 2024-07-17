@@ -262,7 +262,7 @@ def nldn(filenames):
         filenames = [filenames]
     full_df = pd.DataFrame({})
     for filename in filenames:
-        this_file = pd.read_csv(filename, delim_whitespace=True, header=None, 
+        this_file = pd.read_csv(filename, sep='\\s+', header=None, 
                     names=[
                         'date', 'time', 'latitude', 'longitude', 'peak_current_kA', 'curr_unit', 'multiplicity', 'semimajor',
                         'semiminor', 'majorminorratio', 'ellipseangle', 'chi2', 'num_stations', 'type'
@@ -478,7 +478,7 @@ class lmafile(object):
                 comp = 'gzip'
             else:
                 comp = None
-            lmad = pd.read_csv(self.file,compression=comp,delim_whitespace=True,
+            lmad = pd.read_csv(self.file,compression=comp,sep='\\s+',
                                header=None,skiprows=self.data_starts+1,on_bad_lines='skip')
             lmad.columns = self.names
         except pd.errors.EmptyDataError:
