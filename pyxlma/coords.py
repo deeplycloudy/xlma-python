@@ -27,7 +27,7 @@ class CoordinateSystem(object):
         transformations to/from an ECEF cartesian system, e.g.
         >>> self.ERSxyz = proj4.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
         >>> self.ERSlla = proj4.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
-        >>> projectedData = proj4.transform(self.ERSlla, self.ERSxyz, lat, lon, alt )
+        >>> projectedData = proj4.Transformer.from_crs(self.ERSlla.crs, self.ERSxyz.crs).transform(lon, lat, alt)
     The ECEF system has its origin at the center of the earth, with the +Z toward the north pole,
         +X toward (lat=0, lon=0), and +Y right-handed orthogonal to +X, +Z
 
@@ -80,7 +80,7 @@ class GeographicSystem(CoordinateSystem):
         lon = atleast_1d(lon)
         alt = atleast_1d(alt)
         if (lat.shape[0] == 0): return lon, lat, alt # proj doesn't like empties
-        projectedData = array(proj4.transform(self.ERSlla, self.ERSxyz, lon, lat, alt ))
+        projectedData = array(proj4.Transformer.from_crs(self.ERSlla.crs, self.ERSxyz.crs).transform(lon, lat, alt))
         if len(projectedData.shape) == 1:
             return projectedData[0], projectedData[1], projectedData[2]
         else:
@@ -91,7 +91,7 @@ class GeographicSystem(CoordinateSystem):
         y = atleast_1d(y)
         z = atleast_1d(z)
         if (x.shape[0] == 0): return x, y, z # proj doesn't like empties
-        projectedData = array(proj4.transform(self.ERSxyz, self.ERSlla, x, y, z ))
+        projectedData = array(proj4.Transformer.from_crs(self.ERSxyz.crs, self.ERSlla.crs).transform(x, y, z))
         if len(projectedData.shape) == 1:
             return projectedData[0], projectedData[1], projectedData[2]
         else:
@@ -125,7 +125,7 @@ class MapProjection(CoordinateSystem):
         x += self.cx
         y += self.cy
         z += self.cz
-        projectedData = array(proj4.transform(self.projection, self.ERSxyz, x, y, z ))
+        projectedData = array(proj4.Transformer.from_crs(self.projection.crs, self.ERSxyz.crs).transform(x, y, z))
         if len(projectedData.shape) == 1:
             px, py, pz = projectedData[0], projectedData[1], projectedData[2]
         else:
@@ -133,7 +133,7 @@ class MapProjection(CoordinateSystem):
         return px, py, pz
 
     def fromECEF(self, x, y, z):
-        projectedData = array(proj4.transform(self.ERSxyz, self.projection, x, y, z ))
+        projectedData = array(proj4.Transformer.from_crs(self.ERSxyz.crs, self.projection.crs).transform(x, y, z))
         if len(projectedData.shape) == 1:
             px, py, pz = projectedData[0], projectedData[1], projectedData[2]
         else:
@@ -221,10 +221,10 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
 
     def toECEF(self, x, y, z):
         X, Y, Z = x*self.h, y*self.h, z*self.h
-        return proj4.transform(self.fixedgrid, self.ECEFxyz, X, Y, Z)
+        return proj4.Transformer.from_crs(self.fixedgrid.crs, self.ECEFxyz.crs).transform(X, Y, Z)
 
     def fromECEF(self, x, y, z):
-        X, Y, Z = proj4.transform(self.ECEFxyz, self.fixedgrid, x, y, z)
+        X, Y, Z = proj4.Transformer.from_crs(self.ECEFxyz.crs, self.fixedgrid.crs).transform(x, y, z)
         return X/self.h, Y/self.h, Z/self.h
 
 # class AltitudePreservingMapProjection(MapProjection):
@@ -253,8 +253,8 @@ class RadarCoordinateSystem(CoordinateSystem):
         self.lla = proj4.Proj(proj='latlong', ellps=self.ellps, datum=self.datum)
         self.xyz = proj4.Proj(proj='geocent', ellps=self.ellps, datum=self.datum)
 
-        self.Requator, foo1, foo2 = proj4.transform(self.lla,self.xyz,0,0,0) # Equatorial radius  - WGS-84 value = 6378137.0
-        foo1, foo2, self.Rpolar = proj4.transform(self.lla,self.xyz,0,90,0) # Polar radius  - WGS-84 value = 6356752.314
+        self.Requator, _, _ = proj4.Transformer.from_crs(self.lla.crs, self.xyz.crs).transform(0,0,0) # Equatorial radius  - WGS-84 value = 6378137.0
+        _, _, self.Rpolar = proj4.Transformer.from_crs(self.lla.crs, self.xyz.crs).transform(0,90,0) # Polar radius  - WGS-84 value = 6356752.314
         self.flattening = (self.Requator-self.Rpolar)/self.Requator
 
         self.eccen = (2.0-self.flattening)*self.flattening   # First eccentricity squared - WGS-84 value = 0.00669437999013
@@ -374,10 +374,10 @@ class TangentPlaneCartesianSystem(object):
 
         ERSlla = proj4.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
         ERSxyz = proj4.Proj(proj='geocent',  ellps='WGS84', datum='WGS84')
-        self.centerECEF = array(proj4.transform(ERSlla, ERSxyz, ctrLon, ctrLat, ctrAlt))
+        self.centerECEF = array(proj4.Transformer.from_crs(ERSlla.crs, ERSxyz.crs).transform(ctrLon, ctrLat, ctrAlt))
 
         #location of point directly above local center
-        aboveCenterECEF = array(proj4.transform(ERSlla, ERSxyz, ctrLon, ctrLat, self.ctrAlt+1e3))
+        aboveCenterECEF = array(proj4.Transformer.from_crs(ERSlla.crs, ERSxyz.crs).transform(ctrLon, ctrLat, self.ctrAlt+1e3))
 
         #normal vector to earth's surface at the center is the local z direction
         n = aboveCenterECEF - self.centerECEF
@@ -396,7 +396,7 @@ class TangentPlaneCartesianSystem(object):
         # Point just to the north of the center on earth's surface, projected onto the tangent plane
         # This calculation seems like it should only be done with latitude/north since the local x
         #   direction curves away along a non-straight line when projected onto the plane
-        northCenterECEF = array(proj4.transform(ERSlla, ERSxyz, self.ctrLon, self.ctrLat+1.01, self.ctrAlt))
+        northCenterECEF = array(proj4.Transformer.from_crs(ERSlla.crs, ERSxyz.crs).transform(self.ctrLon, self.ctrLat+1.01, self.ctrAlt))
         localy = dot(P, northCenterECEF[:,None] )
         localy = localy / norm(localy)
 
