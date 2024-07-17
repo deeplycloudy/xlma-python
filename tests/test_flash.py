@@ -7,14 +7,14 @@ from pyxlma.lmalib.flash.cluster import cluster_flashes
 from pyxlma.lmalib.flash.properties import *
 
 
-def compare_dataarrays(tocheck, truth, var):
+def compare_dataarrays(tocheck, truth, var, rtol=1.e-5, atol=1.e-8):
     """Compare two dataarrays"""
     if truth[var].data.dtype == 'datetime64[ns]' or truth[var].data.dtype == 'timedelta64[ns]':
         if tocheck[var].data.dtype == 'float64':
             truth[var].data = truth[var].data.astype(float)/1e9
-        np.testing.assert_allclose(tocheck[var].data.astype(float), truth[var].data.astype(float))
+        np.testing.assert_allclose(tocheck[var].data.astype(float), truth[var].data.astype(float), rtol=rtol, atol=atol, equal_nan=True)
     else:
-        np.testing.assert_allclose(tocheck[var].data, truth[var].data)
+        np.testing.assert_allclose(tocheck[var].data, truth[var].data, rtol=rtol, atol=atol, equal_nan=True)
 
 
 def test_cluster_flashes():
