@@ -63,7 +63,7 @@ def combine_datasets(lma_data):
 
     # Get just the pure-event variables
     lma_event_data = xr.concat(
-        [d.drop_dims(['number_of_stations']).drop(
+        [d.drop_dims(['number_of_stations']).drop_vars(
             ['network_center_latitude',
              'network_center_longitude',
              'network_center_altitude',]
