@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
-name: Python package
+name: Run pytests
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  test:
 
     runs-on: ubuntu-latest
     strategy:
@@ -19,31 +19,30 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
-        eval "$(micromamba shell hook --shell bash)"
-        micromamba activate base
-        micromamba install pytest-cov pytest-mpl xarray netcdf4 pandas numpy scikit-learn scipy pyproj cartopy metpy ipywidgets python=${{ matrix.python-version }} -c conda-forge
-        python -m pip install .
+    - name: Install environment with micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: tests/test-env.yml
+        create-args: python=${{ matrix.python-version }}
+        init-shell: bash
     - name: Test with pytest
       run: |
         eval "$(micromamba shell hook --shell bash)"
-        micromamba activate base
+        micromamba activate pyxlma-tests
         coverage run --source=pyxlma -m pytest --mpl --mpl-baseline-path=tests/truth/images/ --mpl-generate-summary=html,json --mpl-results-path=tests/mpl-results/ tests/
         coverage xml
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload matplotlib test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: matplotlib-results
+        name: matplotlib-results-${{ matrix.python-version }}
         path: tests/mpl-results/
