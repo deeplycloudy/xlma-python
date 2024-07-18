@@ -192,7 +192,7 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
     return art_out
 
 
-def plot_glm_events(glm, bk_plot, fake_alt=19, **kwargs):
+def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], poly_kwargs={}, vlines_kwargs={}):
     """
     Plot event-level data from a glmtools dataset on a pyxlma.plot.xlma_base_plot.BlankPlot object.
     Events that occupy the same pixel have their energies summed and plotted on the planview axis, event locations
@@ -207,8 +207,10 @@ def plot_glm_events(glm, bk_plot, fake_alt=19, **kwargs):
         A BlankPlot object to plot the data on
     fake_alt : float
         the altitude to plot glm event points, in km
-    **kwargs
-        additional keyword arguments to be passed to matplotlib Polygon
+    poly_kwargs : dict
+        dictionary of additional keyword arguments to be passed to matplotlib Polygon
+    vlines_kwargs : dict
+        dictionary of additional keyword arguments to be passed to matplotlib vlines
 
     Returns
     -------
@@ -252,14 +254,13 @@ def plot_glm_events(glm, bk_plot, fake_alt=19, **kwargs):
                                                 this_poly_verts[:, 0],
                                                 this_poly_verts[:, 1])[:, 0:2]
                                                 for this_poly_verts in poly_verts]
-    patches = [Polygon(pv, closed=True, **kwargs) for pv in transformed_pv]
-    pc = PatchCollection(patches)
+    patches = [Polygon(pv, closed=True) for pv in transformed_pv]
+    pc = PatchCollection(patches, **poly_kwargs)
     pc.set_array(evrad.data)
     bk_plot.ax_plan.add_collection(pc)
-    fake_alts = np.full_like(glm.number_of_events, fake_alt)
-    th_handle = bk_plot.ax_th.scatter(glm.event_time_offset.data, fake_alts, c='y', marker='v', edgecolors='k')
-    lon_handle = bk_plot.ax_lon.scatter(glm.event_lon, fake_alts, c='y', marker='v', edgecolors='k')
-    lat_handle = bk_plot.ax_lat.scatter(fake_alts, glm.event_lat, c='y', marker='v', edgecolors='k')
+    th_handle = bk_plot.ax_th.vlines(glm.event_time_offset.data, fake_alt[0], fake_alt[1], transform=bk_plot.ax_th.get_xaxis_transform(), **vlines_kwargs)
+    lon_handle = bk_plot.ax_lon.vlines(glm.event_lon, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lon.get_xaxis_transform(), **vlines_kwargs)
+    lat_handle = bk_plot.ax_lat.hlines(glm.event_lat, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lat.get_yaxis_transform(), **vlines_kwargs)
     art_out = [pc, th_handle, lon_handle, lat_handle]
     return art_out
 

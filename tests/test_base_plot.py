@@ -195,5 +195,5 @@ def test_plot_feature_glm_events():
     end_time = start_time + dt.timedelta(seconds=60)
     bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
     glm_data = GLMDataset('examples/network_samples/OR_GLM-L2-LCFA_G16_s20233580057000_e20233580057200_c20233580057222.nc')
-    plot_glm_events(glm_data.dataset, bk_plot)
+    plot_glm_events(glm_data.dataset, bk_plot, fake_alt=[0, 0.25], poly_kwargs={'cmap' : 'plasma'}, vlines_kwargs={'linewidths' : 0.5})
     return bk_plot.fig
