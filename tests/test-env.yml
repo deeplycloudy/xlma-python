@@ -1,0 +1,19 @@
+name: pyxlma-tests
+channels:
+- conda-forge
+dependencies:
+- pytest-cov
+- pytest-mpl
+- xarray
+- netcdf4
+- pandas
+- numpy
+- scipy
+- scikit-learn
+- pyproj
+- metpy
+- ipywidgets
+- pip:
+  - git+https://github.com/deeplycloudy/lmatools
+  - git+https://github.com/deeplycloudy/glmtools@energy_threshold_util
+  - -e ../
