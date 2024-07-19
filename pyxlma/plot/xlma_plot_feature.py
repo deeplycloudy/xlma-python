@@ -161,8 +161,8 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
     else:
         raise ValueError("color_by must be 'time' or 'polarity'")
     
-    cgs = netw_data[netw_data['type']=='CG']
-    ics = netw_data[netw_data['type']=='IC']
+    cgs = netw_data[netw_data['type']=='CG'].copy()
+    ics = netw_data[netw_data['type']=='IC'].copy()
 
     if actual_height is None:
         cgs['height'] = np.full_like(cgs.longitude, fake_cg_height)

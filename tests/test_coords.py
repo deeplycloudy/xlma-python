@@ -20,7 +20,6 @@ def test_geographic():
     geosys = GeographicSystem()
     ecef_coords = geosys.toECEF(test_lons, test_lats, test_alts)
     lons, lats, alts = geosys.fromECEF(*ecef_coords)
-
     assert np.allclose(ecef_coords[0], test_ecef_X)
     assert np.allclose(ecef_coords[1], test_ecef_Y)
     assert np.allclose(ecef_coords[2], test_ecef_Z)
@@ -31,9 +30,7 @@ def test_geographic():
 def test_geographic_one_point():
     geosys = GeographicSystem()
     ecef_coords = geosys.toECEF(np.atleast_1d(test_lons[-1]), np.atleast_1d(test_lats[-1]), np.atleast_1d(test_alts[-1]))
-    print(len(np.atleast_1d(test_lons[-1]).shape))
     lons, lats, alts = geosys.fromECEF(*ecef_coords)
-
     assert np.allclose(ecef_coords[0], test_ecef_X[-1])
     assert np.allclose(ecef_coords[1], test_ecef_Y[-1])
     assert np.allclose(ecef_coords[2], test_ecef_Z[-1])
@@ -119,7 +116,6 @@ def test_radar_system_height():
 def test_radar_system_elevation():
     ADRAD_rcs = RadarCoordinateSystem(30.6177, -96.3365, 114)
     tornado_slant_range, radar_elevation = ADRAD_rcs.getSlantRangeElevation(17144.013390611748, 550.2784673999995)
-    print(tornado_slant_range, radar_elevation)
     assert np.allclose(tornado_slant_range, 17150)
     assert np.allclose(radar_elevation, 1.4)
 
