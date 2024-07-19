@@ -63,7 +63,7 @@ def combine_datasets(lma_data):
 
     # Get just the pure-event variables
     lma_event_data = xr.concat(
-        [d.drop_dims(['number_of_stations']).drop(
+        [d.drop_dims(['number_of_stations']).drop_vars(
             ['network_center_latitude',
              'network_center_longitude',
              'network_center_altitude',]
@@ -113,7 +113,7 @@ def dataset(filenames, sort_time=True):
             ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
                 {'number_of_stations':'station_code', 'number_of_events':'event_id'})
             lma_data.append(ds)
-            next_event_id += ds.dims['number_of_events']
+            next_event_id += ds.sizes['number_of_events']
         except:
             raise
     ds = combine_datasets(lma_data)
@@ -262,7 +262,7 @@ def nldn(filenames):
         filenames = [filenames]
     full_df = pd.DataFrame({})
     for filename in filenames:
-        this_file = pd.read_csv(filename, delim_whitespace=True, header=None, 
+        this_file = pd.read_csv(filename, sep='\\s+', header=None, 
                     names=[
                         'date', 'time', 'latitude', 'longitude', 'peak_current_kA', 'curr_unit', 'multiplicity', 'semimajor',
                         'semiminor', 'majorminorratio', 'ellipseangle', 'chi2', 'num_stations', 'type'
@@ -478,7 +478,7 @@ class lmafile(object):
                 comp = 'gzip'
             else:
                 comp = None
-            lmad = pd.read_csv(self.file,compression=comp,delim_whitespace=True,
+            lmad = pd.read_csv(self.file,compression=comp,sep='\\s+',
                                header=None,skiprows=self.data_starts+1,on_bad_lines='skip')
             lmad.columns = self.names
         except pd.errors.EmptyDataError:
