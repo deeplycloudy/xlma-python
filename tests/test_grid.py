@@ -10,8 +10,8 @@ def test_create_regular_grid():
     grid_h_res = 0.1
     grid_height = 20
     grid_v_res = 1
-    lon_range = (dataset.network_center_longitude - grid_range, dataset.network_center_longitude + grid_range, grid_h_res)
-    lat_range = (dataset.network_center_latitude - grid_range, dataset.network_center_latitude + grid_range, grid_h_res)
+    lon_range = (dataset.network_center_longitude.data.item() - grid_range, dataset.network_center_longitude.data.item() + grid_range, grid_h_res)
+    lat_range = (dataset.network_center_latitude.data.item() - grid_range, dataset.network_center_latitude.data.item() + grid_range, grid_h_res)
     alt_range = (0, grid_height, grid_v_res)
     time_range = (dataset.event_time.data.min(), dataset.event_time.data.max(), np.timedelta64(1, 'm'))
     grid_edge_ranges ={

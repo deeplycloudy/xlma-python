@@ -132,7 +132,7 @@ def assign_regular_bins(dsg, ds, var_to_grid_map, pixel_id_var='pixel_id',
             var_dim = ds[var_name].dims[0]
         else:
             assert var_dim == ds[var_name].dims[0]
-        if ds.dims[var_dim] < 1:
+        if ds.sizes[var_dim] < 1:
             # No data on the dim, set in_range to nothing and stop checking other vars
             in_range = []
             have_data = False
