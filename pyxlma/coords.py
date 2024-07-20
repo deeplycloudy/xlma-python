@@ -207,16 +207,38 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
 
     def __init__(self, subsat_lon=0.0, subsat_lat=0.0, sweep_axis='y',
                  sat_ecef_height=35785831.0,
-                 ellipse='WGS84', datum='WGS84'):
+                 ellipse='WGS84'):
         """
-        Satellite height is with respect to the ellipsoid. Fixed grid
-        coordinates are in radians.
+        Coordinate system representing a grid of scan angles from the perspective of a
+        geostationary satellite above an arbitrary ellipsoid. Fixed grid coordinates are
+        in radians.
+
+        Parameters
+        ----------
+        subsat_lon : float
+            Longitude of the subsatellite point in degrees.
+        subsat_lat : float
+            Latitude of the subsatellite point in degrees.
+        sweep_axis : str
+            Axis along which the satellite sweeps. 'x' or 'y'. Use 'x' for GOES
+            and 'y' (default) for EUMETSAT.
+        sat_ecef_height : float
+            Height of the satellite in meters from the center of the Earth.
+        ellipse : str or list
+            A string representing a known ellipse to pyproj, or a list of [a, b] (semi-major
+            and semi-minor axes) of the ellipse. Default is 'WGS84'.
         """
-        # self.ECEFxyz = proj4.Proj(proj='cart', ellps=ellipse)#, datum=datum)
-        self.ECEFxyz = proj4.Proj(proj='geocent', ellps=ellipse)#, datum=datum)
+        if type(ellipse) == list and len(ellipse) == 2:
+            rf = semiaxes_to_invflattening(ellipse[0], ellipse[1])
+            ellipse_args = {'a': ellipse[0], 'rf': rf}
+        elif type(ellipse) == str:
+            ellipse_args = {'ellps': ellipse}
+        else:
+            raise ValueError("Ellipse must be a string or list of [a, b].")
+        self.ECEFxyz = proj4.Proj(proj='geocent', **ellipse_args)
         self.fixedgrid = proj4.Proj(proj='geos', lon_0=subsat_lon,
             lat_0=subsat_lat, h=sat_ecef_height, x_0=0.0, y_0=0.0,
-            units='m', sweep=sweep_axis, ellps=ellipse)
+            units='m', sweep=sweep_axis, **ellipse_args)
         self.h=sat_ecef_height
 
     def toECEF(self, x, y, z):
@@ -473,3 +495,95 @@ class TangentPlaneCartesianSystem(object):
         return array( [ (dot(self.TransformToLocal.transpose(), v) + self.centerECEF)
                         for v in data[0:3,:].transpose()]
                     ).squeeze().transpose()
+
+
+def semiaxes_to_invflattening(semimajor, semiminor):
+    """ Calculate the inverse flattening from the semi-major
+        and semi-minor axes of an ellipse"""
+    rf = semimajor/(semimajor-semiminor)
+    return rf
+
+
+def centers_to_edges(x):
+    """ 
+    Create an array of length N+1 edge locations from an
+    array of lenght N grid center locations.
+    
+    In the interior, the edge positions set to the midpoints
+    of the values in x. For the outermost edges, half the 
+    closest dx is assumed to apply.
+    
+    Parameters
+    ----------
+    x : array, shape (N)
+        Locations of the centers 
+    
+    Returns
+    -------
+    xedge : array, shape (N+1,M+1)
+    
+    """
+    xedge=zeros(x.shape[0]+1)
+    xedge[1:-1] = (x[:-1] + x[1:])/2.0
+    xedge[0] = x[0] - (x[1] - x[0])/2.0
+    xedge[-1] = x[-1] + (x[-1] - x[-2])/2.0
+    return xedge 
+
+
+def centers_to_edges_2d(x):
+    """ 
+    Create a (N+1, M+1) array of edge locations from a
+    (N, M) array of grid center locations.
+    
+    In the interior, the edge positions set to the midpoints
+    of the values in x. For the outermost edges, half the 
+    closest dx is assumed to apply. This matters for polar
+    meshes, where one edge of the grid becomes a point at the
+    polar coordinate origin; dx/2 is a half-hearted way of
+    trying to prevent negative ranges.
+    
+    Parameters
+    ----------
+    x : array, shape (N,M)
+        Locations of the centers 
+    
+    Returns
+    -------
+    xedge : array, shape (N+1,M+1)
+    
+    """
+    xedge = zeros((x.shape[0]+1,x.shape[1]+1))
+    # interior is a simple average of four adjacent centers
+    xedge[1:-1,1:-1] = (x[:-1,:-1] + x[:-1,1:] + x[1:,:-1] + x[1:,1:])/4.0
+    
+    #         /\
+    #        /\/\
+    #       / /\ \
+    #      /\/  \/\
+    #     / /\  /\ \
+    #    /\/  \/  \/\
+    #   / /\  /\  /\ \
+    #  /\/  \/  \/  \/\
+    #4 \/\  /\  /\  /\/ 4
+    # 3 \ \/  \/  \/ / 3 
+    #    \/\  /\  /\/
+    #   2 \ \/  \/ / 2  
+    #      \/\  /\/
+    #     1 \ \/ / 1
+    #        \/\/
+    #       0 \/ 0 = center ID of 0th dimension
+    #
+    
+    # calculate the deltas along each edge, excluding corners
+    xedge[1:-1,0] = xedge[1:-1, 1] - (xedge[1:-1, 2] - xedge[1:-1, 1])/2.0
+    xedge[1:-1,-1]= xedge[1:-1,-2] - (xedge[1:-1,-3] - xedge[1:-1,-2])/2.0
+    xedge[0,1:-1] = xedge[1,1:-1]  - (xedge[2,1:-1]  - xedge[1,1:-1])/2.0 
+    xedge[-1,1:-1]= xedge[-2,1:-1] - (xedge[-3,1:-1] - xedge[-2,1:-1])/2.0
+    
+    # now do the corners
+    xedge[0,0]  = xedge[1, 1] - (xedge[2, 2] - xedge[1, 1])/2.0
+    xedge[0,-1] = xedge[1,-2] - (xedge[2,-3] - xedge[1,-2])/2.0
+    xedge[-1,0] = xedge[-2,1] - (xedge[-3,2] - xedge[-2,1])/2.0 
+    xedge[-1,-1]= xedge[-2,-2]- (xedge[-3,-3]- xedge[-2,-2])/2.0
+    
+    return xedge
