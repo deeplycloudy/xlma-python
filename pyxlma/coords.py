@@ -223,7 +223,7 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
             Axis along which the satellite sweeps. 'x' or 'y'. Use 'x' for GOES
             and 'y' (default) for EUMETSAT.
         sat_ecef_height : float
-            Height of the satellite in meters from the center of the Earth.
+            Height of the satellite in meters above the specified ellipsoid.
         ellipse : str or list
             A string representing a known ellipse to pyproj, or a list of [a, b] (semi-major
             and semi-minor axes) of the ellipse. Default is 'WGS84'.
