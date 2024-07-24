@@ -169,7 +169,7 @@ def combine_datasets(lma_data):
                             filled_data = np.nan_to_num(new_file[var].data, copy=True, nan=val_to_fill)
                             new_file[var].data = filled_data
                         else:
-                            new_file[var].data[temp_station_id] = all_data[var].isel(number_of_stations=old_station_id, number_of_files=-1).data.item()
+                            new_file[var].data[temp_station_id] = all_data[var].isel(number_of_stations=old_station_id, network_configurations=-1).data.item()
                             val_to_fill = all_data[var].isel(number_of_stations=old_station_id).data
                             val_to_fill = val_to_fill[0]
                 new_file['number_of_stations'] = ('number_of_stations', np.arange(temp_station_id+1))
@@ -184,7 +184,7 @@ def combine_datasets(lma_data):
         # Concatenate the new file's station information with the previously-known station information
         lma_station_data = xr.concat(
                 [d.drop_dims(['number_of_events']) for d in [all_data, new_file]],
-                dim='number_of_files'
+                dim='network_configurations'
             )
         # Rebuild the event_contributing_stations array
         event_contributing_stations = xr.concat(
@@ -209,32 +209,16 @@ def combine_datasets(lma_data):
         all_data = combined_event_data
     # Update the global attributes
     all_data.attrs.update(final_attrs)
-    # To reduce complexity and resource usage, if the 'number_of_files' dimension is the same for all variables, then the dimension is unnecessary
-    if 'number_of_files' in all_data.dims:
-        all_the_same = True
-        # These variables are expected to change between files, so they are not checked for equality
-        expected_to_change = ['station_event_fraction', 'station_power_ratio', 'file_start_time']
-        for var in all_data.data_vars:
-            if var in expected_to_change:
-                continue
-            if 'number_of_files' in all_data[var].dims:
-                if (all_data[var] == all_data[var].isel(number_of_files=0)).all():
-                    pass
-                else:
-                    all_the_same = False
-        # If all of the variables are the same for all files, remove the 'number_of_files' dimension.
-        if all_the_same:
-            # Some variables need to be averaged
-            mean_data = all_data.mean(dim='number_of_files')
-            # ...but most can just be copied over (this is necessary because some are strings which can't be averaged)
-            all_data = all_data.isel(number_of_files=0)
-            # the file_start_time variable is not needed in the reduced dataset
-            all_data = all_data.drop_vars(['file_start_time'])
-            # replace the copied variables with the averaged variables where necessary
-            for var in expected_to_change:
-                if var == 'file_start_time':
-                    continue
-                all_data[var] = mean_data[var]
+    # store start and end time and seconds analyzed as attributes, then drop file_start_time and seconds_analyzed dims
+    all_data.attrs['start_time'] = all_data['file_start_time'].data.min()
+    all_data = all_data.drop_vars(['file_start_time'])
+    # somehow this gets set to float64 (probably introduction of nan values above), that's unnecessary, use uint8
+    all_data.station_active.data = all_data.station_active.data.astype(np.uint8)
+    # To reduce complexity and resource usage, if the 'network_configurations' dimension is the same for all variables, then the dimension is unnecessary
+    if 'network_configurations' in all_data.dims:
+        # Identify unique network configurations
+        unique_configs = np.unique(all_data.station_active.data, return_index=True, axis=0)[1]
+        all_data = all_data.isel(network_configurations=unique_configs)
     return all_data
 
 def dataset(filenames, sort_time=True):
