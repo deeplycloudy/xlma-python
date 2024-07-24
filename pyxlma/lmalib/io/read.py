@@ -4,6 +4,7 @@ import numpy as np
 import gzip
 import datetime as dt
 from os import path
+import warnings
 
 class open_gzip_or_dat:
     def __init__(self, filename):
@@ -199,8 +200,7 @@ def combine_datasets(lma_data):
             [d.drop_dims(['number_of_stations']).drop_vars(
                 ['network_center_latitude',
                 'network_center_longitude',
-                'network_center_altitude',
-                'file_start_time']
+                'network_center_altitude']
             ) for d in [all_data, new_file]],
             dim='number_of_events'
         )
@@ -209,15 +209,14 @@ def combine_datasets(lma_data):
         all_data = combined_event_data
     # Update the global attributes
     all_data.attrs.update(final_attrs)
-    # store start and end time and seconds analyzed as attributes, then drop file_start_time and seconds_analyzed dims
-    all_data.attrs['start_time'] = all_data['file_start_time'].data.min()
-    all_data = all_data.drop_vars(['file_start_time'])
     # somehow this gets set to float64 (probably introduction of nan values above), that's unnecessary, use uint8
     all_data.station_active.data = all_data.station_active.data.astype(np.uint8)
     # To reduce complexity and resource usage, if the 'network_configurations' dimension is the same for all variables, then the dimension is unnecessary
     if 'network_configurations' in all_data.dims:
         # Identify unique network configurations
         unique_configs = np.unique(all_data.station_active.data, return_index=True, axis=0)[1]
+        if len(unique_configs) == 1:
+            unique_configs = unique_configs[0]
         all_data = all_data.isel(network_configurations=unique_configs)
     return all_data
 
@@ -229,6 +228,8 @@ def dataset(filenames, sort_time=True):
         filenames = [filenames]
     lma_data = []
     starttime = None
+    analyzed_sec = 0
+    endtime = None
     next_event_id = 0
     for filename in filenames:
         lma_file = lmafile(filename)
@@ -236,6 +237,11 @@ def dataset(filenames, sort_time=True):
             starttime = lma_file.starttime
         else:
             starttime = min(lma_file.starttime, starttime)
+        analyzed_sec += lma_file.analyzed_sec
+        if endtime is None:
+            endtime = lma_file.starttime + dt.timedelta(seconds=lma_file.analyzed_sec)
+        else:
+            endtime = max(lma_file.starttime + dt.timedelta(seconds=lma_file.analyzed_sec), endtime)
         # Accounting for empty files
         try:
             ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
@@ -245,10 +251,17 @@ def dataset(filenames, sort_time=True):
         except:
             raise
     ds = combine_datasets(lma_data)
+    ds.attrs['analysis_start_time'] = starttime
+    ds.attrs['number_of_seconds_analyzed'] = analyzed_sec
+    ds.attrs['analysis_end_time'] = endtime
+    if starttime + dt.timedelta(seconds=analyzed_sec) < endtime:
+        warnings.warn('The number of seconds analyzed does not fully cover the time between the start and end times of the analysis. This may indicate '
+                      'incomplete or non-continuous data.')
+    elif starttime + dt.timedelta(seconds=analyzed_sec) > endtime:
+        warnings.warn('The start time and end time of the analysis do not match the number of seconds analyzed. If you are combining multiple networks, '
+                      'this is normal and expected, otherwise, this may indicate an error in the orignal analysis program.')
     if sort_time:
         ds = ds.sortby('event_time')
-        if 'file_start_time' in ds.dims:
-            ds = ds.sortby('file_start_time')
     ds = ds.reset_index(('number_of_events', 'number_of_stations'))
     if 'number_of_events_' in ds.coords:
         # Older xarray versions appended a trailing underscore. reset_coords then dropped
@@ -331,7 +344,6 @@ def to_dataset(lma_file, event_id_start=0):
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
     ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
     ds.attrs['original_filename'] =  path.basename(lma_file.file)
-    ds['file_start_time'] = starttime
     # -- Populate the station mask information --
     # int, because NetCDF doesn't have booleans
     station_mask_bools = np.zeros((N_events, N_stations), dtype='int8')
@@ -496,13 +508,15 @@ class lmafile(object):
                     file_created = line.decode().split(':')[1:]
                     self.file_created = ':'.join(file_created)[:-1]
                 if line.startswith(b'Location:'):
-                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1].replace(' ','')
+                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1].replace(' ','', 1)
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
                     # Full start time and second, likely unneeded
                     self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
+                if line.startswith(b'Number of seconds analyzed:'):
+                    self.analyzed_sec = int(line.decode().split(':')[-1])
                 # Find starting and ending rows for station information
                 if line.startswith(b'Coordinate center'):
                     self.center_lat = float(line.decode().split()[-3])
