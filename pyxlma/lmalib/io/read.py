@@ -364,6 +364,10 @@ def to_dataset(lma_file, event_id_start=0):
     station_active_data[ds.station_active.data == b'A'] = 1
     station_active_data[ds.station_active.data == b'NA'] = 0
     ds.station_active.data = station_active_data
+
+    # Convert station event count to station event fraction
+    if N_events != 0:
+        ds.station_event_fraction.data = 100*ds.station_event_fraction.data/N_events
     return ds
 
 
