@@ -466,7 +466,7 @@ def compare_attributes(ds):
     """ Compare the attributes of all data variables in ds to the CF spec
         and print a report of any differences.
     """
-    dst = __template_dataset['data_vars']
+    dst = new_template_dataset()['data_vars']
     dsd = ds.to_dict()['data_vars']
     for k in dsd.keys():
         if dst[k]['attrs'] != dsd[k]['attrs']:
