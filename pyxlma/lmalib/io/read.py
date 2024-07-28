@@ -76,7 +76,6 @@ def combine_datasets(lma_data):
     # Get the attributes attached to each variable in the dataset
     dv_attrs = {}
     new_ds = new_template_dataset()
-    print(new_ds)
     for var in new_ds['data_vars']:
         dv_attrs[var] = new_ds['data_vars'][var]['attrs']
     # Define list of 'properties', things which identify a station and are not expected to change
@@ -212,6 +211,9 @@ def combine_datasets(lma_data):
     all_data['network_center_altitude'] = all_data.station_altitude.mean(dim='number_of_stations')
     all_data['station_event_fraction'] = 100*all_data.event_contributing_stations.sum(dim='number_of_events')/all_data.number_of_events.shape[0]
     all_data['station_power_ratio'] = (all_data.event_contributing_stations * all_data.event_power).sum(dim='number_of_events')/all_data.event_power.sum(dim='number_of_events')
+    mask_strings = np.apply_along_axis(lambda x: ''.join(x), 1, all_data.event_contributing_stations.astype(str).data) # convert each event's contributing stations (T/F) to binary
+    all_data.event_mask.data = np.vectorize(lambda x: int(x, 2))(mask_strings) # convert bin to dec
+    all_data.attrs['station_mask_order'] = np.apply_along_axis(lambda x: ''.join(x), 0, all_data.station_code.astype(str).data).item()
     # restore previously cached data var attributes
     for var_name in all_data.data_vars:
         if var_name in dv_attrs:
@@ -251,16 +253,16 @@ def dataset(filenames, sort_time=True):
         ds = ds.sortby('event_time')
     ds = ds.reset_index(('number_of_events'))
     if 'number_of_events_' in ds.coords:
-    #     # Older xarray versions appended a trailing underscore. reset_coords then dropped
-    #     # converted the coordinate variables into regular variables while not touching
-    #     # the original dimension name, allowing us to rename. In newer versions, the variable
-    #     # names are never changed at the reset_index step, so the renaming step modifies
-    #     # the dimension name, too.
+        # Older xarray versions appended a trailing underscore. reset_coords then dropped
+        # converted the coordinate variables into regular variables while not touching
+        # the original dimension name, allowing us to rename. In newer versions, the variable
+        # names are never changed at the reset_index step, so the renaming step modifies
+        # the dimension name, too.
         resetted = ('number_of_events_', 'number_of_stations_')
         ds = ds.rename({resetted[0]:'event_id'})
     else:
-    #     # The approach for newer xarray versions requires we explicitly rename only the variables.
-    #     # The generic "rename" in the block above renames vars, coords, and dims.
+        # The approach for newer xarray versions requires we explicitly rename only the variables.
+        # The generic "rename" in the block above renames vars, coords, and dims.
         resetted = ('number_of_events', 'number_of_stations')
         ds = ds.rename_vars({resetted[0]:'event_id'})
     return ds, starttime
