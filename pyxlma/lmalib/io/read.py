@@ -5,7 +5,7 @@ import gzip
 import datetime as dt
 from os import path
 import collections
-from pyxlma.lmalib.io.cf_netcdf import new_dataset
+from pyxlma.lmalib.io.cf_netcdf import new_dataset, new_template_dataset
 
 class open_gzip_or_dat:
     def __init__(self, filename):
@@ -75,7 +75,7 @@ def combine_datasets(lma_data):
     all_data = lma_data[0]
     # Get the attributes attached to each variable in the dataset
     dv_attrs = {}
-    new_ds = new_dataset(1, 1, 1)
+    new_ds = new_template_dataset()
     for var in new_ds.data_vars:
         dv_attrs[var] = new_ds[var].attrs
     # Define list of 'properties', things which identify a station and are not expected to change
