@@ -76,8 +76,9 @@ def combine_datasets(lma_data):
     # Get the attributes attached to each variable in the dataset
     dv_attrs = {}
     new_ds = new_template_dataset()
-    for var in new_ds.data_vars:
-        dv_attrs[var] = new_ds[var].attrs
+    print(new_ds)
+    for var in new_ds['data_vars']:
+        dv_attrs[var] = new_ds['data_vars'][var]['attrs']
     # Define list of 'properties', things which identify a station and are not expected to change
     property_vars = ('station_latitude', 'station_longitude', 'station_altitude', 'station_code', 'station_network')
     # Define list of variables to be recalculated for each station after the datasets are combined
