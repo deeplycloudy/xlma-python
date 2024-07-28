@@ -5,6 +5,8 @@ import gzip
 import datetime as dt
 from os import path
 import collections
+import string
+import warnings
 from pyxlma.lmalib.io.cf_netcdf import new_dataset, new_template_dataset
 
 class open_gzip_or_dat:
@@ -82,9 +84,15 @@ def combine_datasets(lma_data):
     property_vars = ('station_latitude', 'station_longitude', 'station_altitude', 'station_code', 'station_network')
     # Define list of variables to be recalculated for each station after the datasets are combined
     recalc_vars = ('station_event_fraction', 'station_power_ratio', 'network_center_latitude', 'network_center_longitude', 'network_center_altitude')
+    # Will be set to True if network_center location needs to be recalculated
+    recalc_center = False
     # Check each subsequent dataset for new stations
     for new_file_num in range(1, len(lma_data)):
         new_file = lma_data[new_file_num]
+        if (np.all(new_file.network_center_latitude.data != all_data.network_center_latitude.data)
+            or np.all(new_file.network_center_longitude.data.item() != all_data.network_center_longitude.data)
+            or np.all(new_file.network_center_altitude.data != all_data.network_center_altitude.data)):
+            recalc_center = True
         # Demote station code to a data variable and assign an index to each station in the new file
         new_file['station_code'] = new_file.number_of_stations
         new_file['number_of_stations'] = np.arange(len(new_file.number_of_stations))
@@ -197,6 +205,9 @@ def combine_datasets(lma_data):
             all_data.attrs['config_times'].append([[new_file.attrs['analysis_start_time'], new_file.attrs['analysis_end_time']]])
         all_data.attrs['analysis_start_time'] = min(all_data.attrs['analysis_start_time'], new_file.attrs['analysis_start_time'])
         all_data.attrs['analysis_end_time'] = max(all_data.attrs['analysis_end_time'], new_file.attrs['analysis_end_time'])
+        all_data['network_center_longitude'] = all_data.network_center_longitude.isel(number_of_events=0)
+        all_data['network_center_latitude'] = all_data.network_center_latitude.isel(number_of_events=0)
+        all_data['network_center_altitude'] = all_data.network_center_altitude.isel(number_of_events=0)
     # Update the global attributes
     all_data.attrs.update(final_attrs)
     # To reduce complexity and resource usage, if the 'network_configurations' dimension is the same for all variables, then the dimension is unnecessary
@@ -205,12 +216,52 @@ def combine_datasets(lma_data):
         unique_configs = np.unique(all_data.station_active.data, return_index=True, axis=0)[1]
         if len(unique_configs) == 1:
             unique_configs = unique_configs[0]
+        else:
+            all_data['station_event_fraction'] = 100*all_data.event_contributing_stations.sum(dim='number_of_events')/all_data.number_of_events.shape[0]
+            all_data['station_power_ratio'] = (all_data.event_contributing_stations * all_data.event_power).sum(dim='number_of_events')/all_data.event_power.sum(dim='number_of_events')
     # recalculate variables that depend on the station data
-    all_data['network_center_longitude'] = all_data.station_longitude.mean(dim='number_of_stations')
-    all_data['network_center_latitude'] = all_data.station_latitude.mean(dim='number_of_stations')
-    all_data['network_center_altitude'] = all_data.station_altitude.mean(dim='number_of_stations')
-    all_data['station_event_fraction'] = 100*all_data.event_contributing_stations.sum(dim='number_of_events')/all_data.number_of_events.shape[0]
-    all_data['station_power_ratio'] = (all_data.event_contributing_stations * all_data.event_power).sum(dim='number_of_events')/all_data.event_power.sum(dim='number_of_events')
+    if recalc_center:
+        all_data['network_center_longitude'] = all_data.station_longitude.mean(dim='number_of_stations')
+        all_data['network_center_latitude'] = all_data.station_latitude.mean(dim='number_of_stations')
+        all_data['network_center_altitude'] = all_data.station_altitude.mean(dim='number_of_stations')
+    # Make sure all station codes are unique
+    if np.max(np.unique_counts(all_data.station_code.data).counts) > 1:
+        unique_stat = []
+        the_alphabet = string.ascii_letters
+        for i in range(len(all_data.station_code.data)):
+            stat = all_data.station_code.data[i]
+            if stat in unique_stat:
+                warnings.warn(f'Conflicting station code discovered at index {i}')
+                stat_str = stat.decode('utf-8')
+                if stat_str.isupper():
+                    lowc = stat_str.lower()
+                    if bytes(lowc, 'utf-8') not in unique_stat:
+                        warnings.warn(f'Renaming station {stat_str} to {lowc}')
+                        unique_stat.append(bytes(lowc, 'utf-8'))
+                    else:
+                        for new_letter in the_alphabet:
+                            if bytes(new_letter, 'utf-8') not in unique_stat:
+                                warnings.warn(f'Renaming station {stat_str} to {new_letter}')
+                                unique_stat.append(bytes(new_letter, 'utf-8'))
+                                break
+                        else:
+                            warnings.warn(f'Assigning station a blank ID. This station will not be included in files generated by pyxlma.lmalib.io.write.lma_dat_file')
+                elif stat_str.islower():
+                    upc = stat_str.upper()
+                    if bytes(upc, 'utf-8') not in unique_stat:
+                        warnings.warn(f'Renaming station {stat_str} to {upc}')
+                        unique_stat.append(bytes(upc, 'utf-8'))
+                    else:
+                        for new_letter in the_alphabet:
+                            if bytes(new_letter, 'utf-8') not in unique_stat:
+                                warnings.warn(f'Renaming station {stat_str} to {new_letter}')
+                                unique_stat.append(bytes(new_letter, 'utf-8'))
+                                break
+                        else:
+                            warnings.warn(f'Assigning station a blank ID. This station will not be included in files generated by pyxlma.lmalib.io.write.lma_dat_file')
+            else:    
+                unique_stat.append(stat)
+        all_data.station_code.data = np.array(unique_stat, dtype='S1')
     mask_strings = np.apply_along_axis(lambda x: ''.join(x), 1, all_data.event_contributing_stations.astype(str).data) # convert each event's contributing stations (T/F) to binary
     all_data.event_mask.data = np.vectorize(lambda x: int(x, 2))(mask_strings) # convert bin to dec
     all_data.attrs['station_mask_order'] = np.apply_along_axis(lambda x: ''.join(x), 0, all_data.station_code.astype(str).data).item()
@@ -218,6 +269,7 @@ def combine_datasets(lma_data):
     for var_name in all_data.data_vars:
         if var_name in dv_attrs:
             all_data[var_name].attrs = dv_attrs[var_name]
+    all_data.station_active.attrs['_FillValue'] = 255
     return all_data
 
 def dataset(filenames, sort_time=True):
@@ -347,7 +399,7 @@ def to_dataset(lma_file, event_id_start=0):
     ds['event_contributing_stations'][:] = station_mask_bools
 
     # -- Convert the station_active flag to a psuedo-boolean --
-    station_active_data = np.zeros(N_stations, dtype='int8')
+    station_active_data = np.zeros(N_stations, dtype='uint8')
     station_active_data[ds.station_active.data == b'A'] = 1
     station_active_data[ds.station_active.data == b'NA'] = 0
     ds.station_active.data = station_active_data

@@ -12,6 +12,10 @@ def dataset(dataset, path):
     for var in dataset.data_vars:
         if np.all(dataset[var].data == np.nan):
             dataset = dataset.drop_vars(var)
+    for attr in dataset.attrs:
+        if type(dataset.attrs[attr]) == dt.datetime:
+            dataset.attrs[attr] = dataset.attrs[attr].strftime('%Y-%m-%d %H:%M:%S.%f')
+    dataset.attrs.pop('config_times', None)
     comp = dict(zlib=True, complevel=5)
     encoding = {var: comp for var in dataset.data_vars}
     dataset = dataset.chunk('auto')
