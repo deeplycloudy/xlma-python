@@ -262,8 +262,8 @@ def combine_datasets(lma_data):
             else:    
                 unique_stat.append(stat)
         all_data.station_code.data = np.array(unique_stat, dtype='S1')
-    mask_strings = np.apply_along_axis(lambda x: ''.join(x), 1, all_data.event_contributing_stations.astype(str).data) # convert each event's contributing stations (T/F) to binary
-    all_data.event_mask.data = np.vectorize(lambda x: int(x, 2))(mask_strings) # convert bin to dec
+    bin_to_dec = 2**np.flip(np.arange(all_data.event_contributing_stations.data.shape[1]))
+    all_data.event_mask.data = np.sum((bin_to_dec * all_data.event_contributing_stations.data), axis=1) # convert bin to dec
     all_data.attrs['station_mask_order'] = np.apply_along_axis(lambda x: ''.join(x), 0, all_data.station_code.astype(str).data).item()
     # restore previously cached data var attributes
     for var_name in all_data.data_vars:
