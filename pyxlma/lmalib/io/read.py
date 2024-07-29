@@ -587,8 +587,6 @@ class lmafile(object):
                     self.station_info_start = line_no
                 if line.startswith(b'Station data:'):
                     self.station_data_start = line_no
-                if line.startswith(b'Metric file:'):
-                    self.station_data_end = line_no
                 # Find mask list order
                 if line.startswith(b'Station mask order:'):
                     self.maskorder = line.decode().split()[-1]
