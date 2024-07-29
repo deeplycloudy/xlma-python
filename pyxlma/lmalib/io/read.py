@@ -66,10 +66,21 @@ def combine_datasets(lma_data):
             continue
         attr_vals =  all_attrs[k]
         set_of_values = set(attr_vals)
-        if len(set_of_values) == 1:
+        if len(set_of_values) == 0:
+            continue
+        elif len(set_of_values) == 1:
             final_attrs[k] = tuple(set_of_values)[0]
         else:
-            final_attrs[k] = '; '.join(attr_vals)
+            if type(attr_vals[0]) == str:
+                final_attrs[k] = '; '.join(attr_vals)
+            elif k == 'min_stations':
+                final_attrs[k] = min(attr_vals)
+            elif k == 'max_chi2':
+                final_attrs[k] = max(attr_vals)
+            elif k == 'max_chi2_iterations':
+                final_attrs[k] = min(attr_vals)
+            else:
+                warnings.warn(f'Conflicting values for global attribute {k}')
     # Get the station data from the first dataset and assign each station a unique index
     lma_data[0]['station_code'] = lma_data[0].number_of_stations
     lma_data[0]['number_of_stations'] = np.arange(len(lma_data[0].number_of_stations))
