@@ -325,7 +325,7 @@ def to_dataset(lma_file, event_id_start=0):
     returns an xarray dataset of the type returned by
         pyxlma.lmalib.io.cf_netcdf.new_dataset
     """
-    
+
     lma_data = lma_file.readfile()
     starttime = lma_file.starttime
     stations = lma_file.stations
@@ -343,6 +343,10 @@ def to_dataset(lma_file, event_id_start=0):
         'station_event_fraction':'sources',
         'station_power_ratio':'<P/P_m>',
         'station_active':'active',
+        'station_name':'Name',
+        'station_board_revision':'Board Revision',
+        'station_delay':'Delay Time',
+        'station_receive_channels':'Receiver Channels',
     }
     event_mapping = {
         'event_latitude':'lat',
@@ -383,6 +387,9 @@ def to_dataset(lma_file, event_id_start=0):
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
     ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
     ds.attrs['original_filename'] =  path.basename(lma_file.file)
+    ds.attrs['max_chi2'] = lma_file.maximum_chi2
+    ds.attrs['min_stations'] = lma_file.minimum_stations
+    ds.attrs['max_chi2_iterations'] = lma_file.maximum_chi2_iter
     # -- Populate the station mask information --
     # int, because NetCDF doesn't have booleans
     station_mask_bools = np.zeros((N_events, N_stations), dtype='int8')
@@ -542,20 +549,17 @@ class lmafile(object):
         with open_gzip_or_dat(self.file) as f:
             for line_no, line in enumerate(f):
                 if line.startswith(b'Analysis program:'):
-                    analysis_program = line.decode().split(':')[1:]
-                    self.analysis_program = ':'.join(analysis_program)[:-1]
+                    self.analysis_program = line.decode().replace('Analysis program: ','').replace('Analysis program:','')
                 if line.startswith(b'Analysis program version:'):
-                    analysis_program_version = line.decode().split(':')[1:]
-                    self.analysis_program_version = ':'.join(analysis_program_version)[:-1]
+                    self.analysis_program_version = line.decode().replace('Analysis program version: ', '').replace('Analysis program version:', '')
                 if line.startswith(b'File created:') | line.startswith(b'Analysis finished:'):
-                    file_created = line.decode().split(':')[1:]
-                    self.file_created = ':'.join(file_created)[:-1]
+                    self.file_created = line.decode().replace('File created: ', '').replace('File created:', '').replace('Analysis finished: ', '').replace('Analysis finished:', '')
                 if line.startswith(b'Location:'):
-                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1].replace(' ','', 1)
+                    self.network_location = line.decode().replace('Location: ', '').replace('Location:', '')
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
-                    # Full start time and second, likely unneeded
+                    # Full start time and second
                     self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
                 if line.startswith(b'Number of seconds analyzed:'):
@@ -568,7 +572,7 @@ class lmafile(object):
                 # Number of active stations
                 if line.startswith(b'Number of active stations:'):
                     self.active_station_c_line = line_no
-                    self.active_staion_c_count = line.decode().split()[-1]
+                    self.active_staion_c_count = int(line.decode().split()[-1])
                 # Active stations
                 if line.startswith(b'Active stations:'):
                     self.active_station_s_line = line_no
@@ -577,7 +581,7 @@ class lmafile(object):
                     self.minimum_stations = int(line.decode().split(':')[1])
                 if line.startswith(b'Maximum reduced chi-squared:'):
                     self.maximum_chi2 = float(line.decode().split(':')[1])
-                if line.startswith(b'Maximum chi-squared iterations:'):
+                if line.startswith(b'Maximum chi-squared iterations:') or line.startswith(b'Maximum number of chi-squared iterations:'):
                     self.maximum_chi2_iter = int(line.decode().split(':')[1])
                 if line.startswith(b'Station information:'):
                     self.station_info_start = line_no
@@ -606,13 +610,13 @@ class lmafile(object):
 
         # Station overview information
         stations = pd.DataFrame(self.gen_sta_info(),
-            columns=['ID','Name','Lat','Long','Alt','Delay Time'])
+            columns=['ID','Name','Lat','Long','Alt','Delay Time','Board Revision','Receiver Channels'])
         overview = pd.DataFrame(self.gen_sta_data(),
             columns=['ID','Name','win(us)', 'data_ver', 'rms_error(ns)',
-                     'sources','percent','<P/P_m>','active'])
+                     'sources','percent','<P/P_m>','active']).drop(columns=['Name'])
         # Drop the station name column that has a redundant station letter code
         # as part of the name and join on station letter code.
-        station_combo =  stations.set_index('ID').drop(columns=['Name']).join(
+        station_combo =  stations.set_index('ID').join(
                              overview.set_index('ID'))
         self.stations = station_combo.reset_index(level=station_combo.index.names)
 
@@ -631,7 +635,7 @@ class lmafile(object):
                 parts = line.decode("utf-8").split()
                 name = ' '.join(parts[2:-6])
                 sta_info, code = parts[0:2]
-                yield (code, name) + tuple(parts[-6:-2])
+                yield (code, name) + tuple(parts[-6:])
 
     def gen_sta_data(self):
         """ Parse the station data table from the header. Some files do not
@@ -680,7 +684,7 @@ class lmafile(object):
         lmad.insert(1,'Datetime',pd.to_timedelta(lmad['time (UT sec of day)'], unit='s')+self.startday)
 
         # Parse out which stations contributed into new columns for each station
-        col_names = self.stations.Name.values
+        col_names = self.stations.Name.values.copy()
         self.mask_ints = mask_to_int(lmad["mask"])
         for index,items in enumerate(self.maskorder[::-1]):
             col_names[index] = items+'_'+self.stations.Name.values[index]
