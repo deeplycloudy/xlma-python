@@ -549,13 +549,13 @@ class lmafile(object):
         with open_gzip_or_dat(self.file) as f:
             for line_no, line in enumerate(f):
                 if line.startswith(b'Analysis program:'):
-                    self.analysis_program = line.decode().replace('Analysis program: ','').replace('Analysis program:','')
+                    self.analysis_program = line.decode().replace('Analysis program: ','').replace('Analysis program:','').replace('\n', '')
                 if line.startswith(b'Analysis program version:'):
-                    self.analysis_program_version = line.decode().replace('Analysis program version: ', '').replace('Analysis program version:', '')
+                    self.analysis_program_version = line.decode().replace('Analysis program version: ', '').replace('Analysis program version:', '').replace('\n', '')
                 if line.startswith(b'File created:') | line.startswith(b'Analysis finished:'):
-                    self.file_created = line.decode().replace('File created: ', '').replace('File created:', '').replace('Analysis finished: ', '').replace('Analysis finished:', '')
+                    self.file_created = line.decode().replace('File created: ', '').replace('File created:', '').replace('Analysis finished: ', '').replace('Analysis finished:', '').replace('\n', '')
                 if line.startswith(b'Location:'):
-                    self.network_location = line.decode().replace('Location: ', '').replace('Location:', '')
+                    self.network_location = line.decode().replace('Location: ', '').replace('Location:', '').replace('\n', '')
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
