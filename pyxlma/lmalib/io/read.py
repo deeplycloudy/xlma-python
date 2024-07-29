@@ -81,7 +81,7 @@ def combine_datasets(lma_data):
     for var in new_ds['data_vars']:
         dv_attrs[var] = new_ds['data_vars'][var]['attrs']
     # Define list of 'properties', things which identify a station and are not expected to change
-    property_vars = ('station_latitude', 'station_longitude', 'station_altitude', 'station_code', 'station_network')
+    property_vars = ('station_latitude', 'station_longitude', 'station_altitude', 'station_code', 'station_network', 'station_name', 'station_board_revision', 'station_delay', 'station_receive_channels')
     # Define list of variables to be recalculated for each station after the datasets are combined
     recalc_vars = ('station_event_fraction', 'station_power_ratio', 'network_center_latitude', 'network_center_longitude', 'network_center_altitude')
     # Will be set to True if network_center location needs to be recalculated
