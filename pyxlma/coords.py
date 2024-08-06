@@ -228,11 +228,11 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
             A string representing a known ellipse to pyproj, or a list of [a, b] (semi-major
             and semi-minor axes) of the ellipse. Default is 'WGS84'.
         """
-        if type(ellipse) == list and len(ellipse) == 2:
+        if type(ellipse) == str:
+            ellipse_args = {'ellps': ellipse}
+        elif hasattr(ellipse, '__iter__') and len(ellipse) == 2:
             rf = semiaxes_to_invflattening(ellipse[0], ellipse[1])
             ellipse_args = {'a': ellipse[0], 'rf': rf}
-        elif type(ellipse) == str:
-            ellipse_args = {'ellps': ellipse}
         else:
             raise ValueError("Ellipse must be a string or list of [a, b].")
         self.ECEFxyz = proj4.Proj(proj='geocent', **ellipse_args)
