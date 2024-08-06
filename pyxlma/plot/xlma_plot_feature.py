@@ -240,7 +240,6 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
     glm['lutevent_corner_x'] = xr.DataArray(event_polys[:,:,0], dims=['lutevent_id', 'number_of_corners'])
     glm['lutevent_corner_y'] = xr.DataArray(event_polys[:,:,1], dims=['lutevent_id', 'number_of_corners'])
 
-    N_ev = evrad.shape[0]
     cx = glm.lutevent_corner_x
     cy = glm.lutevent_corner_y
     cz = np.zeros_like(cx)
@@ -253,9 +252,9 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
         gfgs_ellipse = 'WGS84'
         ltg_ellps_re = None
         ltg_ellps_rp = None
-    geofixcs = GeostationaryFixedGridSystem(subsat_lon=glm.nominal_satellite_subpoint_lon.data.item(), ellipse=gfgs_ellipse,
+    geofixcs = GeostationaryFixedGridSystem(subsat_lon=glm.lon_field_of_view.data.item(), ellipse=gfgs_ellipse,
                                             sweep_axis='x', sat_ecef_height=sat_ecef_height)
-    grs80lla = GeographicSystem(r_equator=ltg_ellps_re, r_pole=ltg_ellps_rp)
+    grs80lla = GeographicSystem()
     ltg_lon, ltg_lat, ltg_alt = grs80lla.fromECEF(*geofixcs.toECEF(cx,cy,cz))
     poly_verts = []
     for polynum in range(ltg_lon.shape[0]):
