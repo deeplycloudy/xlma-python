@@ -1,5 +1,6 @@
 from pyxlma.coords import RadarCoordinateSystem, TangentPlaneCartesianSystem, GeographicSystem
-import numpy as np  
+import numpy as np
+import datetime as dt
 
 
 def rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
@@ -58,7 +59,7 @@ def rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
     return X, Y, Z
 
 
-def geo_to_tps(lma_file, tps_latitude, tps_longitude, tps_altitude):
+def geo_to_tps(event_longitude, event_latitude, event_altitude, tps_latitude, tps_longitude, tps_altitude):
     """
     Convert the latitude, longitude, and altitude of LMA VHF sources to x/y/z distances (in meters) from an arbitrary latitude, longitude, and altitude.
 
@@ -66,7 +67,7 @@ def geo_to_tps(lma_file, tps_latitude, tps_longitude, tps_altitude):
 
     Parameters
     ----------
-    lma_file : `xarray.Dataset`
+    event_longitude : `xarray.Dataset`
         A pyxlma dataset containing latitude, longitude, and altitude of LMA VHF sources.
     tps_latitude : `float`
         Latitude of the tangent plane in degrees.
@@ -91,7 +92,7 @@ def geo_to_tps(lma_file, tps_latitude, tps_longitude, tps_altitude):
 
     # GEO to TPS
 
-    d, e, h = geo.toECEF(lma_file.event_longitude.data, lma_file.event_latitude.data, lma_file.event_altitude.data)
+    d, e, h = geo.toECEF(event_longitude, event_latitude, event_altitude)
     
 
     deh = np.vstack((d,e,h))
@@ -104,7 +105,7 @@ def geo_to_tps(lma_file, tps_latitude, tps_longitude, tps_altitude):
     return Xlma,Ylma,Zlma
 
 
-def ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
+def ortho_proj_lma(event_longitude, event_latitude, event_altitude, radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
     """
     Convert the latitude, longitude, and altitude of LMA VHF sources to distance along, distance from, and height above the ground of a radar RHI scan.
     
@@ -130,7 +131,7 @@ def ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, ra
         A Nx3 array representing the distance along, distance from, and height above the ground (in m) of the LMA VHF sources.
 
     """
-    Xlma,Ylma,Zlma = geo_to_tps(lma_file, radar_latitude, radar_longitude, radar_altitude)
+    Xlma,Ylma,Zlma = geo_to_tps(event_longitude, event_latitude, event_altitude, radar_latitude, radar_longitude, radar_altitude)
     X, Y, Z = rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth)
 
     lon_ini1 = X[0,0]
@@ -189,7 +190,74 @@ def ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, ra
     return lma_file_loc
 
 
-def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth, radar_scan_time, distance_threshold=1000, time_threshold=30):
+def find_points_near_rhi(event_longitude, event_latitude, event_altitude, event_time,
+                         radar_latitude, radar_longitude, radar_altitude, radar_azimuth, radar_scan_time,
+                         distance_threshold=1000, time_threshold=30):
+    """
+    Find the LMA VHF sources near a radar RHI scan.
+    
+    Creates tangent plane at the radar's location and converts the LMA VHF sources to the tangent plane coordinate system, then rotates the tangent plane in the direction of the scan azimuth.
+    Filters RHI scan points based on distance and time thresholds.
+
+    
+    Parameters
+    ----------
+    event_longitude : array-like
+        An array of the latitudes of events to be transformed.
+    event_latitude : array-like
+        An array of the latitudes of events to be transformed.
+    event_altitude : array-like
+        An array of the altitudes of events to be transformed.
+    event_time : array-like
+        An array of the times of events to be transformed.
+    radar_latitude : `float`
+        Latitude of the radar in degrees.
+    radar_longitude : `float`
+        Longitude of the radar in degrees.
+    radar_altitude : `float`
+        Altitude of the radar in meters.
+    radar_azimuth : `float`
+        Azimuth of the RHI scan in degrees.
+    radar_scan_time : `datetime.datetime` or `numpy.datetime64` or `pandas.Timestamp`
+        Time of the RHI scan.
+    distance_threshold : `float`
+        Maximum distance from the radar to the LMA VHF sources in meters. Default is 1000.
+    time_threshold : `float`
+        Number of seconds before and after the RHI scan time to include LMA VHF sources. Default is 30. (total length: 1 minute)
+
+
+    Returns
+    ----------
+    lma_range : `numpy.ndarray`
+        A 1D array representing the distance along the tangent plane in the direction of the RHI scan.
+    lma_dist : `numpy.ndarray`
+        A 1D array representing the distance from the radar RHI scan plane to each filtered LMA point.
+    lma_alt : `numpy.ndarray`
+        A 1D array representing the height above the tangent plane centered at radar level of each filtered LMA point.
+    point_mask : `numpy.ndarray`
+        A 1D array of booleans representing the VHF points that were included in the return.
+    """
+
+    radar_azimuth = radar_azimuth % 360
+
+    radar_scan_time = np.array([radar_scan_time]).astype('datetime64[s]').astype(dt.datetime)
+
+    projected_lma = ortho_proj_lma(event_longitude, event_latitude, event_altitude,
+                                   radar_latitude, radar_longitude, radar_altitude, radar_azimuth)
+    lma_range = projected_lma[:,0]
+    lma_dist = projected_lma[:,1]
+    lma_alt = projected_lma[:,2]
+
+    lma_times = event_time.astype('datetime64[s]').astype(dt.datetime)
+    point_mask = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time) < dt.timedelta(seconds=time_threshold))
+    lma_range = lma_range[point_mask]
+    lma_dist = lma_dist[point_mask]
+    lma_alt = lma_alt[point_mask]
+
+    return lma_range, lma_dist, lma_alt, point_mask
+
+
+def find_lma_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth, radar_scan_time, distance_threshold=1000, time_threshold=30):
     """
     Find the LMA VHF sources near a radar RHI scan.
     
@@ -228,20 +296,6 @@ def find_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_altitu
     point_mask : `numpy.ndarray`
         A 1D array of booleans representing the VHF points that were included in the return.
     """
-
-    radar_azimuth = radar_azimuth % 360
-
-    radar_scan_time = np.array([radar_scan_time]).astype('datetime64[s]')
-
-    projected_lma = ortho_proj_lma(lma_file, radar_latitude, radar_longitude, radar_altitude, radar_azimuth)
-    lma_range = projected_lma[:,0]
-    lma_dist = projected_lma[:,1]
-    lma_alt = projected_lma[:,2]
-
-    lma_times = lma_file.event_time.data.astype('datetime64[s]')
-    point_mask = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time).astype(float) < time_threshold)
-    lma_range = lma_range[point_mask]
-    lma_dist = lma_dist[point_mask]
-    lma_alt = lma_alt[point_mask]
-
-    return lma_range, lma_dist, lma_alt, point_mask
+    return find_points_near_rhi(lma_file.event_longitude.data, lma_file.event_latitude.data, lma_file.event_altitude.data,
+                                lma_file.event_time.data, radar_latitude, radar_longitude, radar_altitude, radar_azimuth,
+                                radar_scan_time, distance_threshold, time_threshold)
