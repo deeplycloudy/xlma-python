@@ -180,7 +180,7 @@ def ortho_proj_lma(event_longitude, event_latitude, event_altitude, radar_latitu
     lma_file_loc[:,0] = np.sqrt(lma_file_loc_par[:,0]**2 + lma_file_loc_par[:,1]**2)
     if radar_azimuth <= 90 or radar_azimuth >= 270:
         lma_file_loc[:,0][lma_file_loc_par[:,1] < 0] = -lma_file_loc[:,0][lma_file_loc_par[:,1] < 0]
-    elif radar_azimuth > 180 and radar_azimuth < 270:
+    elif radar_azimuth >= 180 and radar_azimuth < 270:
         lma_file_loc[:,0][lma_file_loc_par[:,0] > 0] = -lma_file_loc[:,0][lma_file_loc_par[:,0] > 0]
     else:
         lma_file_loc[:,0][lma_file_loc_par[:,0] < 0] = -lma_file_loc[:,0][lma_file_loc_par[:,0] < 0]
