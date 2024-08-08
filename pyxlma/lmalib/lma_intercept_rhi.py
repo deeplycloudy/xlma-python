@@ -1,6 +1,7 @@
 from pyxlma.coords import RadarCoordinateSystem, TangentPlaneCartesianSystem, GeographicSystem
 import numpy as np
 import datetime as dt
+import pandas as pd
 
 
 def rcs_to_tps(radar_latitude, radar_longitude, radar_altitude, radar_azimuth):
@@ -248,12 +249,18 @@ def find_points_near_rhi(event_longitude, event_latitude, event_altitude, event_
     lma_dist = projected_lma[:,1]
     lma_alt = projected_lma[:,2]
 
+    if isinstance(event_time, pd.Series):
+        event_time = event_time.values
     lma_times = event_time.astype('datetime64[s]').astype(dt.datetime)
-    point_mask = (lma_dist < distance_threshold) & (np.abs(lma_times - radar_scan_time) < dt.timedelta(seconds=time_threshold))
+    point_mask = np.ones_like(lma_range, dtype=bool)
+    if distance_threshold is not None:
+        point_mask = np.logical_and(point_mask, lma_dist < distance_threshold)
+    if time_threshold is not None:
+        point_mask = np.logical_and(point_mask,
+                                    np.abs(lma_times - radar_scan_time) < dt.timedelta(seconds=time_threshold))
     lma_range = lma_range[point_mask]
     lma_dist = lma_dist[point_mask]
     lma_alt = lma_alt[point_mask]
-
     return lma_range, lma_dist, lma_alt, point_mask
 
 
