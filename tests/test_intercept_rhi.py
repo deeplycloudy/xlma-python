@@ -11,7 +11,7 @@ def test_intercept_rhi():
     files_to_read = listdir('examples/data/')
     files_to_read = ['examples/data/'+file for file in files_to_read]
     dataset, start_date = lma_read.dataset(files_to_read)
-    lma_radar_range, lma_plane_distance, lma_arl, event_mask = lma_intercept_rhi.find_points_near_rhi(dataset, 33.56, -101.81, 1600.0, 225, start_date+timedelta(seconds=30), distance_threshold=500, time_threshold=15)
+    lma_radar_range, lma_plane_distance, lma_arl, event_mask = lma_intercept_rhi.find_lma_points_near_rhi(dataset, 33.56, -101.81, 1600.0, 225, start_date+timedelta(seconds=30), distance_threshold=500, time_threshold=15)
     lma_indices = np.flatnonzero(event_mask)
     true_radar_range = np.array([-24314.95714263, -24255.42134556, -23947.00309296, -24201.07999466,
        -24216.22494555, -24209.0779143 , -24252.54770026, -24196.90100367,
