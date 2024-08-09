@@ -15,7 +15,9 @@ def test_read_mf_dataset():
     files_to_read = ['examples/data/'+file for file in files_to_read]
     dataset, start_date = lma_read.dataset(files_to_read)
     assert start_date == dt(2023, 12, 24, 0, 57, 1)
-    assert dataset == xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
+    truth = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
+    for var in truth.data_vars:
+        compare_dataarrays(dataset, truth, var)
 
 
 def test_read_onefile_dataset():

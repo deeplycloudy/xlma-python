@@ -301,6 +301,10 @@ def new_template_dataset():
    'attrs': {'_FillValue': ' '*32, 'long_name': 'LMA network'},
    'dtype': '|S32',
    },
+   'station_name': {'dims': ('number_of_stations',),# 'string32'),
+   'attrs': {'_FillValue': ' '*32, 'long_name': 'Name of receiving station'},
+   'dtype': '|S32',
+   },
   'station_latitude': {'dims': ('number_of_stations',),
    'attrs': {'_FillValue': np.nan,
     'valid_range': [-90.0, 90.0],
@@ -323,6 +327,22 @@ def new_template_dataset():
     'positive': 'up'},
    'dtype': 'float32',
    },
+   'station_delay': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': np.nan,
+    'long_name': "Configured delay time for a signal to travel from the antenna to the receiver",
+    'units': 'nanoseconds'},
+   'dtype': 'float32',
+   },
+   'station_board_revision': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': 0,
+    'long_name': "Station board revision number"},
+   'dtype': 'uint8',
+   },
+   'station_receive_channels': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': 0,
+    'long_name': "Number of channels on the station's receiver"},
+   'dtype': 'uint8',
+   },
   'station_event_fraction': {'dims': ('number_of_stations',),
    'attrs': {'_FillValue': np.nan,
     'long_name': "Fraction of events to which this station contributed",
@@ -334,6 +354,11 @@ def new_template_dataset():
    'attrs': {'_FillValue': np.nan,
     'long_name': "<P/P_m>"},
    'dtype': 'float32',
+   },
+   'station_active': {'dims': ('number_of_stations',),
+   'attrs': {'_FillValue': np.nan,
+    'long_name': "Station active flag"},
+   'dtype': '|S2',
    },
 
  }}
@@ -461,7 +486,7 @@ def compare_attributes(ds):
     """ Compare the attributes of all data variables in ds to the CF spec
         and print a report of any differences.
     """
-    dst = __template_dataset['data_vars']
+    dst = new_template_dataset()['data_vars']
     dsd = ds.to_dict()['data_vars']
     for k in dsd.keys():
         if dst[k]['attrs'] != dsd[k]['attrs']:

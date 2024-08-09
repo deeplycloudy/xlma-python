@@ -3,6 +3,11 @@ import pandas as pd
 import numpy as np
 import gzip
 import datetime as dt
+from os import path
+import collections
+import string
+import warnings
+from pyxlma.lmalib.io.cf_netcdf import new_dataset, new_template_dataset
 
 class open_gzip_or_dat:
     def __init__(self, filename):
@@ -36,6 +41,17 @@ def combine_datasets(lma_data):
         pyxlma.lmalib.io.cf_netcdf.new_dataset or
         pyxlma.lmalib.io.read.to_dataset
     """
+    def reorder_stations(dataset, index_mapping):
+        for var in dataset.data_vars:
+            if 'number_of_stations' in dataset[var].dims:
+                if var == 'station_code':
+                    new_station_codes = dataset[var].data.copy()
+                    new_station_codes = new_station_codes[index_mapping]
+                    dataset = dataset.assign(station_code=('number_of_stations', new_station_codes))
+                else:
+                    reordered_data = dataset[var].isel(number_of_stations=index_mapping)
+                    dataset[var].data = reordered_data.values
+        return dataset
     # Get a list of all the global attributes from each dataset
     attrs = [d.attrs for d in lma_data]
     # Create a dict of {attr_name: [list of values from each dataset]}
@@ -46,52 +62,226 @@ def combine_datasets(lma_data):
     }
     final_attrs = {}
     for k in all_attrs:
+        if k.startswith('analysis_') and k.endswith('_time'):
+            continue
         attr_vals =  all_attrs[k]
         set_of_values = set(attr_vals)
-        if len(set_of_values) == 1:
+        if len(set_of_values) == 0:
+            continue
+        elif len(set_of_values) == 1:
             final_attrs[k] = tuple(set_of_values)[0]
         else:
-            final_attrs[k] = '; '.join(attr_vals)
-    # print(final_attrs)
+            if type(attr_vals[0]) == str:
+                final_attrs[k] = '; '.join(attr_vals)
+            elif k == 'min_stations':
+                final_attrs[k] = min(attr_vals)
+            elif k == 'max_chi2':
+                final_attrs[k] = max(attr_vals)
+            elif k == 'max_chi2_iterations':
+                final_attrs[k] = min(attr_vals)
+            else:
+                warnings.warn(f'Conflicting values for global attribute {k}')
+    # Get the station data from the first dataset and assign each station a unique index
+    lma_data[0]['station_code'] = lma_data[0].number_of_stations
+    lma_data[0]['number_of_stations'] = np.arange(len(lma_data[0].number_of_stations))
+    lma_data[0].attrs['config_times'] = [[[lma_data[0].attrs['analysis_start_time'], lma_data[0].attrs['analysis_end_time']]]]
+    all_data = lma_data[0]
+    # Get the attributes attached to each variable in the dataset
+    dv_attrs = {}
+    new_ds = new_template_dataset()
+    for var in new_ds['data_vars']:
+        dv_attrs[var] = new_ds['data_vars'][var]['attrs']
+    # Define list of 'properties', things which identify a station and are not expected to change
+    property_vars = ('station_latitude', 'station_longitude', 'station_altitude', 'station_code', 'station_network', 'station_name', 'station_board_revision', 'station_delay', 'station_receive_channels')
+    # Define list of variables to be recalculated for each station after the datasets are combined
+    recalc_vars = ('station_event_fraction', 'station_power_ratio', 'network_center_latitude', 'network_center_longitude', 'network_center_altitude')
+    # Will be set to True if network_center location needs to be recalculated
+    recalc_center = False
+    # Check each subsequent dataset for new stations
+    for new_file_num in range(1, len(lma_data)):
+        new_file = lma_data[new_file_num]
+        if (np.all(new_file.network_center_latitude.data != all_data.network_center_latitude.data)
+            or np.all(new_file.network_center_longitude.data.item() != all_data.network_center_longitude.data)
+            or np.all(new_file.network_center_altitude.data != all_data.network_center_altitude.data)):
+            recalc_center = True
+        # Demote station code to a data variable and assign an index to each station in the new file
+        new_file['station_code'] = new_file.number_of_stations
+        new_file['number_of_stations'] = np.arange(len(new_file.number_of_stations))
+        stations_in_file = []
+        # Check each station in the new file against all known stations
+        station_is_new = True
+        old_ids_to_check_for_missing = all_data.number_of_stations.data.tolist()
+        for station_num in range(len(new_file.number_of_stations.data)):
+            station = new_file.isel(number_of_stations=station_num)
+            old_ids_to_search = collections.deque(range(len(all_data.number_of_stations.data)))
+            old_ids_to_search.rotate(-1*station_num) # start with the same index because stations USUALLY come in the same order
+            for old_station_num in old_ids_to_search:
+                old_station = all_data.isel(number_of_stations=old_station_num)
+                all_props_match = True
+                for prop in property_vars:
+                    if station.data_vars[prop].data.item() != old_station.data_vars[prop].data.item():
+                        all_props_match = False
+                        break
+                if all_props_match:
+                    station_is_new = False
+                    stations_in_file.append(old_station_num)
+                    old_ids_to_check_for_missing.remove(old_station_num)
+                    break
+            if station_is_new:
+                stations_in_file.append(-1)
+        # Find the indices of any newly-discovered stations
+        indices_of_new_stations = np.where(np.array(stations_in_file) == -1)[0]
+        # Add the new stations to the known stations
+        for idx_of_new_station in indices_of_new_stations:
+            new_station = new_file.isel(number_of_stations=idx_of_new_station)
+            # The new station is appended to the end of the known stations
+            new_station_index = len(all_data.number_of_stations)
+            # Expand all of the previous data to contain the new station. Fill with station properties.
+            fill_vals_dict = {}
+            for var in new_station.data_vars:
+                if 'number_of_stations' in all_data[var].dims:
+                    if var in property_vars:
+                        fill_vals_dict[var] = new_station[var].data.item()
+                    else:
+                        fill_vals_dict[var] = 0
+            all_data = all_data.reindex({'number_of_stations': np.arange(new_station_index+1)}, fill_value=fill_vals_dict)
+            # Update the station index for the new station
+            stations_in_file[idx_of_new_station] = new_station_index
+        # Check for any previously-known stations that are no longer in the new file
+        for missing_station_id in old_ids_to_check_for_missing:
+            dead_station_data = all_data.isel(number_of_stations=missing_station_id)
+            # a station has been removed, create a row of nan values for this file to indicate that the station is no longer present
+            # first create a temporary index for the dead station
+            temp_station_id = len(new_file.number_of_stations)
+            fill_vals_dict = {}
+            for var in dead_station_data.data_vars:
+                if 'number_of_stations' in all_data[var].dims:
+                    if var in property_vars:
+                        fill_vals_dict[var] = dead_station_data[var].data.item()
+                    else:
+                        fill_vals_dict[var] = 0
+            new_file = new_file.reindex({'number_of_stations': np.arange(temp_station_id+1)}, fill_value=fill_vals_dict)
+            # Update the station index for the dead station
+            stations_in_file.append(missing_station_id)
+        # Re-order the station data to match the order of the stations in the new file
+        # This can happen if lma_analysis decides to change the order of the stations, or if new stations are added or removed
+        new_file = reorder_stations(new_file, np.argsort(stations_in_file))
+        # Concatenate the new file's station information with the previously-known station information
+        station_to_merge = [d.drop_dims(['number_of_events']) for d in [all_data, new_file]]
+        lma_station_data = xr.concat(station_to_merge, dim='network_configurations').drop_vars(
+            ['network_center_latitude', 'network_center_longitude', 'network_center_altitude'])
+        for var_name in lma_station_data.data_vars:
+            da = lma_station_data[var_name]
+            if 'network_configurations' in da.dims:
+                # black magic from openAI that somehow determines if a data array is identical across the 'network_configurations' variable
+                if np.all((da == da.isel({'network_configurations': 0})).all('network_configurations')) or var_name in recalc_vars:
+                    # Remove the 'network_configurations' dimension if the data is identical across it
+                    lma_station_data[var_name] = da.isel(network_configurations=0)
+        if 'network_configurations' in lma_station_data.dims:
+            unique_netw_configs = np.unique(lma_station_data.station_active.data, return_index=True, axis=0)[1]
+            lma_station_data = lma_station_data.isel(network_configurations=sorted(unique_netw_configs))
+        # Rebuild the event_contributing_stations array
+        event_contributing_stations = xr.concat(
+                [d['event_contributing_stations'] for d in [all_data, new_file]],
+                dim='number_of_events'
+            )
+        # Attach the event_contributing_stations array to the station dataset
+        lma_station_data['event_contributing_stations'] = event_contributing_stations
 
-    # Get just the pure-station variables
-    lma_station_data = xr.concat(
-        [d.drop_dims(['number_of_events']) for d in lma_data],
-        dim='number_of_files'
-    )
-    # print(lma_station_data)
-
-    # Get just the pure-event variables
-    lma_event_data = xr.concat(
-        [d.drop_dims(['number_of_stations']).drop_vars(
-            ['network_center_latitude',
-             'network_center_longitude',
-             'network_center_altitude',]
-          ) for d in lma_data],
-        dim='number_of_events'
-    )
-    # print(lma_event_data)
-
-    # Get any varaibles with joint dimensions,
-    # i.e., ('number_of_events', 'number_of_stations')
-    event_contributing_stations = xr.concat(
-        [d['event_contributing_stations'] for d in lma_data],
-        dim='number_of_events'
-    )
-    # print(event_contributing_stations)
-
-    # Find the mean of the station data, and then add back the event data
-    ds = xr.merge([lma_station_data.mean(dim='number_of_files'),
-                   lma_event_data],
-                  compat='equals')
-    # ... and then restore the contributing stations.
-    # Note the coordinate variables are being used as labels to ensure data remain aligned.
-    ds['event_contributing_stations'] = event_contributing_stations
-
-    # Restore the global attributes
-    ds.attrs.update(final_attrs)
-
-    return ds
+        # Combining the events is a simple concatenation. If only the stations had been this easy...
+        lma_event_data = xr.concat(
+            [d.drop_dims(['number_of_stations']) for d in [all_data, new_file]],
+            dim='number_of_events'
+        )
+        # merge all the data from this file with the previously-known data
+        combined_event_data = xr.merge([lma_station_data, lma_event_data])
+        all_data = combined_event_data
+        # Log continuous intervals of data coverage
+        if 'network_configurations' in all_data.dims:
+            this_netw_conf = np.where((all_data.station_active.data == new_file.station_active.data).all(axis=1))[0][0]
+        else:
+            this_netw_conf = 0
+        if len(all_data.attrs['config_times']) > this_netw_conf:
+            times_of_this_config = all_data.attrs['config_times'][this_netw_conf]
+            for gap in times_of_this_config:
+                if new_file.attrs['analysis_start_time'] == gap[1]:
+                    gap[1] = new_file.attrs['analysis_end_time']
+                    break
+                elif new_file.attrs['analysis_end_time'] == gap[0]:
+                    gap[0] = new_file.attrs['analysis_start_time']
+                    break
+            else:
+                times_of_this_config.append([new_file.attrs['analysis_start_time'], new_file.attrs['analysis_end_time']])
+        else:
+            all_data.attrs['config_times'].append([[new_file.attrs['analysis_start_time'], new_file.attrs['analysis_end_time']]])
+        all_data.attrs['analysis_start_time'] = min(all_data.attrs['analysis_start_time'], new_file.attrs['analysis_start_time'])
+        all_data.attrs['analysis_end_time'] = max(all_data.attrs['analysis_end_time'], new_file.attrs['analysis_end_time'])
+        all_data['network_center_longitude'] = all_data.network_center_longitude.isel(number_of_events=0)
+        all_data['network_center_latitude'] = all_data.network_center_latitude.isel(number_of_events=0)
+        all_data['network_center_altitude'] = all_data.network_center_altitude.isel(number_of_events=0)
+    # Update the global attributes
+    all_data.attrs.update(final_attrs)
+    # To reduce complexity and resource usage, if the 'network_configurations' dimension is the same for all variables, then the dimension is unnecessary
+    if 'network_configurations' in all_data.dims:
+        # Identify unique network configurations
+        unique_configs = np.unique(all_data.station_active.data, return_index=True, axis=0)[1]
+        if len(unique_configs) == 1:
+            unique_configs = unique_configs[0]
+        else:
+            all_data['station_event_fraction'] = 100*all_data.event_contributing_stations.sum(dim='number_of_events')/all_data.number_of_events.shape[0]
+            all_data['station_power_ratio'] = (all_data.event_contributing_stations * all_data.event_power).sum(dim='number_of_events')/all_data.event_power.sum(dim='number_of_events')
+    # recalculate variables that depend on the station data
+    if recalc_center:
+        all_data['network_center_longitude'] = all_data.station_longitude.mean(dim='number_of_stations')
+        all_data['network_center_latitude'] = all_data.station_latitude.mean(dim='number_of_stations')
+        all_data['network_center_altitude'] = all_data.station_altitude.mean(dim='number_of_stations')
+    # Make sure all station codes are unique
+    if np.max(np.unique_counts(all_data.station_code.data).counts) > 1:
+        unique_stat = []
+        the_alphabet = string.ascii_letters
+        for i in range(len(all_data.station_code.data)):
+            stat = all_data.station_code.data[i]
+            if stat in unique_stat:
+                warnings.warn(f'Conflicting station code discovered at index {i}')
+                stat_str = stat.decode('utf-8')
+                if stat_str.isupper():
+                    lowc = stat_str.lower()
+                    if bytes(lowc, 'utf-8') not in unique_stat:
+                        warnings.warn(f'Renaming station {stat_str} to {lowc}')
+                        unique_stat.append(bytes(lowc, 'utf-8'))
+                    else:
+                        for new_letter in the_alphabet:
+                            if bytes(new_letter, 'utf-8') not in unique_stat:
+                                warnings.warn(f'Renaming station {stat_str} to {new_letter}')
+                                unique_stat.append(bytes(new_letter, 'utf-8'))
+                                break
+                        else:
+                            warnings.warn(f'Assigning station a blank ID. This station will not be included in files generated by pyxlma.lmalib.io.write.lma_dat_file')
+                elif stat_str.islower():
+                    upc = stat_str.upper()
+                    if bytes(upc, 'utf-8') not in unique_stat:
+                        warnings.warn(f'Renaming station {stat_str} to {upc}')
+                        unique_stat.append(bytes(upc, 'utf-8'))
+                    else:
+                        for new_letter in the_alphabet:
+                            if bytes(new_letter, 'utf-8') not in unique_stat:
+                                warnings.warn(f'Renaming station {stat_str} to {new_letter}')
+                                unique_stat.append(bytes(new_letter, 'utf-8'))
+                                break
+                        else:
+                            warnings.warn(f'Assigning station a blank ID. This station will not be included in files generated by pyxlma.lmalib.io.write.lma_dat_file')
+            else:    
+                unique_stat.append(stat)
+        all_data.station_code.data = np.array(unique_stat, dtype='S1')
+    bin_to_dec = 2**np.flip(np.arange(all_data.event_contributing_stations.data.shape[1]))
+    all_data.event_mask.data = np.sum((bin_to_dec * all_data.event_contributing_stations.data), axis=1) # convert bin to dec
+    all_data.attrs['station_mask_order'] = np.apply_along_axis(lambda x: ''.join(x), 0, all_data.station_code.astype(str).data).item()
+    # restore previously cached data var attributes
+    for var_name in all_data.data_vars:
+        if var_name in dv_attrs:
+            all_data[var_name].attrs = dv_attrs[var_name]
+    all_data.station_active.attrs['_FillValue'] = 255
+    return all_data
 
 def dataset(filenames, sort_time=True):
     """ Create an xarray dataset of the type returned by
@@ -101,23 +291,30 @@ def dataset(filenames, sort_time=True):
         filenames = [filenames]
     lma_data = []
     starttime = None
+    if sort_time:
+        all_starttimes = []
     next_event_id = 0
-    for filename in filenames:
+    for filename in sorted(filenames):
         lma_file = lmafile(filename)
         if starttime is None:
             starttime = lma_file.starttime
         else:
             starttime = min(lma_file.starttime, starttime)
-        # Accounting for empty files
-        try:
-            ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
-                {'number_of_stations':'station_code', 'number_of_events':'event_id'})
-            lma_data.append(ds)
-            next_event_id += ds.sizes['number_of_events']
-        except:
-            raise
+        ds = to_dataset(lma_file, event_id_start=next_event_id).set_index(
+            {'number_of_stations':'station_code', 'number_of_events':'event_id'})
+        ds.attrs['analysis_start_time'] = lma_file.starttime
+        ds.attrs['analysis_end_time'] = lma_file.starttime + dt.timedelta(seconds=lma_file.analyzed_sec)
+        lma_data.append(ds)
+        next_event_id += ds.sizes['number_of_events']
+        if sort_time:
+            all_starttimes.append(lma_file.starttime)
+    if sort_time:
+        sorting = np.argsort(all_starttimes)
+        lma_data = [lma_data[i] for i in sorting]
     ds = combine_datasets(lma_data)
-    ds = ds.reset_index(('number_of_events', 'number_of_stations'))
+    if sort_time:
+        ds = ds.sortby('event_time')
+    ds = ds.reset_index(('number_of_events'))
     if 'number_of_events_' in ds.coords:
         # Older xarray versions appended a trailing underscore. reset_coords then dropped
         # converted the coordinate variables into regular variables while not touching
@@ -125,18 +322,12 @@ def dataset(filenames, sort_time=True):
         # names are never changed at the reset_index step, so the renaming step modifies
         # the dimension name, too.
         resetted = ('number_of_events_', 'number_of_stations_')
-        ds = ds.reset_coords(resetted)
-        ds = ds.rename({resetted[0]:'event_id',
-                        resetted[1]:'station_code'})
+        ds = ds.rename({resetted[0]:'event_id'})
     else:
         # The approach for newer xarray versions requires we explicitly rename only the variables.
         # The generic "rename" in the block above renames vars, coords, and dims.
         resetted = ('number_of_events', 'number_of_stations')
-        ds = ds.reset_coords(resetted)
-        ds = ds.rename_vars({resetted[0]:'event_id',
-                        resetted[1]:'station_code'})
-    if sort_time:
-        ds = ds.sortby('event_time')
+        ds = ds.rename_vars({resetted[0]:'event_id'})
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
@@ -145,7 +336,7 @@ def to_dataset(lma_file, event_id_start=0):
     returns an xarray dataset of the type returned by
         pyxlma.lmalib.io.cf_netcdf.new_dataset
     """
-    from pyxlma.lmalib.io.cf_netcdf import new_dataset
+
     lma_data = lma_file.readfile()
     starttime = lma_file.starttime
     stations = lma_file.stations
@@ -162,6 +353,11 @@ def to_dataset(lma_file, event_id_start=0):
         'station_altitude':'Alt',
         'station_event_fraction':'sources',
         'station_power_ratio':'<P/P_m>',
+        'station_active':'active',
+        'station_name':'Name',
+        'station_board_revision':'Board Revision',
+        'station_delay':'Delay Time',
+        'station_receive_channels':'Receiver Channels',
     }
     event_mapping = {
         'event_latitude':'lat',
@@ -201,7 +397,10 @@ def to_dataset(lma_file, event_id_start=0):
     ds.attrs['history'] = "LMA source file created "+lma_file.file_created
     ds.attrs['event_algorithm_name'] = lma_file.analysis_program
     ds.attrs['event_algorithm_version'] = lma_file.analysis_program_version
-
+    ds.attrs['original_filename'] =  path.basename(lma_file.file)
+    ds.attrs['max_chi2'] = lma_file.maximum_chi2
+    ds.attrs['min_stations'] = lma_file.minimum_stations
+    ds.attrs['max_chi2_iterations'] = lma_file.maximum_chi2_iter
     # -- Populate the station mask information --
     # int, because NetCDF doesn't have booleans
     station_mask_bools = np.zeros((N_events, N_stations), dtype='int8')
@@ -217,6 +416,15 @@ def to_dataset(lma_file, event_id_start=0):
         station_mask_bools[:, i] = lma_data[col]
     ds['event_contributing_stations'][:] = station_mask_bools
 
+    # -- Convert the station_active flag to a psuedo-boolean --
+    station_active_data = np.zeros(N_stations, dtype='uint8')
+    station_active_data[ds.station_active.data == b'A'] = 1
+    station_active_data[ds.station_active.data == b'NA'] = 0
+    ds.station_active.data = station_active_data
+
+    # Convert station event count to station event fraction
+    if N_events != 0:
+        ds.station_event_fraction.data = 100*ds.station_event_fraction.data/N_events
     return ds
 
 
@@ -352,22 +560,21 @@ class lmafile(object):
         with open_gzip_or_dat(self.file) as f:
             for line_no, line in enumerate(f):
                 if line.startswith(b'Analysis program:'):
-                    analysis_program = line.decode().split(':')[1:]
-                    self.analysis_program = ':'.join(analysis_program)[:-1]
+                    self.analysis_program = line.decode().replace('Analysis program: ','').replace('Analysis program:','').replace('\n', '')
                 if line.startswith(b'Analysis program version:'):
-                    analysis_program_version = line.decode().split(':')[1:]
-                    self.analysis_program_version = ':'.join(analysis_program_version)[:-1]
+                    self.analysis_program_version = line.decode().replace('Analysis program version: ', '').replace('Analysis program version:', '').replace('\n', '')
                 if line.startswith(b'File created:') | line.startswith(b'Analysis finished:'):
-                    file_created = line.decode().split(':')[1:]
-                    self.file_created = ':'.join(file_created)[:-1]
+                    self.file_created = line.decode().replace('File created: ', '').replace('File created:', '').replace('Analysis finished: ', '').replace('Analysis finished:', '').replace('\n', '')
                 if line.startswith(b'Location:'):
-                    self.network_location = ':'.join(line.decode().split(':')[1:])[:-1]
+                    self.network_location = line.decode().replace('Location: ', '').replace('Location:', '').replace('\n', '')
                 if line.startswith(b'Data start time:'):
                     timestring = line.decode().split()[-2:]
                     self.startday = dt.datetime.strptime(timestring[0],'%m/%d/%y')
-                    # Full start time and second, likely unneeded
+                    # Full start time and second
                     self.starttime = dt.datetime.strptime(timestring[0]+timestring[1],'%m/%d/%y%H:%M:%S')
                     # self.startsecond = (starttime-dt.datetime(starttime.year,starttime.month,starttime.day)).seconds
+                if line.startswith(b'Number of seconds analyzed:'):
+                    self.analyzed_sec = int(line.decode().split(':')[-1])
                 # Find starting and ending rows for station information
                 if line.startswith(b'Coordinate center'):
                     self.center_lat = float(line.decode().split()[-3])
@@ -376,7 +583,7 @@ class lmafile(object):
                 # Number of active stations
                 if line.startswith(b'Number of active stations:'):
                     self.active_station_c_line = line_no
-                    self.active_staion_c_count = line.decode().split()[-1]
+                    self.active_staion_c_count = int(line.decode().split()[-1])
                 # Active stations
                 if line.startswith(b'Active stations:'):
                     self.active_station_s_line = line_no
@@ -385,14 +592,12 @@ class lmafile(object):
                     self.minimum_stations = int(line.decode().split(':')[1])
                 if line.startswith(b'Maximum reduced chi-squared:'):
                     self.maximum_chi2 = float(line.decode().split(':')[1])
-                if line.startswith(b'Maximum chi-squared iterations:'):
+                if line.startswith(b'Maximum chi-squared iterations:') or line.startswith(b'Maximum number of chi-squared iterations:'):
                     self.maximum_chi2_iter = int(line.decode().split(':')[1])
                 if line.startswith(b'Station information:'):
                     self.station_info_start = line_no
                 if line.startswith(b'Station data:'):
                     self.station_data_start = line_no
-                if line.startswith(b'Metric file:'):
-                    self.station_data_end = line_no
                 # Find mask list order
                 if line.startswith(b'Station mask order:'):
                     self.maskorder = line.decode().split()[-1]
@@ -414,13 +619,13 @@ class lmafile(object):
 
         # Station overview information
         stations = pd.DataFrame(self.gen_sta_info(),
-            columns=['ID','Name','Lat','Long','Alt','Delay Time'])
+            columns=['ID','Name','Lat','Long','Alt','Delay Time','Board Revision','Receiver Channels'])
         overview = pd.DataFrame(self.gen_sta_data(),
             columns=['ID','Name','win(us)', 'data_ver', 'rms_error(ns)',
-                     'sources','percent','<P/P_m>','active'])
+                     'sources','percent','<P/P_m>','active']).drop(columns=['Name'])
         # Drop the station name column that has a redundant station letter code
         # as part of the name and join on station letter code.
-        station_combo =  stations.set_index('ID').drop(columns=['Name']).join(
+        station_combo =  stations.set_index('ID').join(
                              overview.set_index('ID'))
         self.stations = station_combo.reset_index(level=station_combo.index.names)
 
@@ -439,7 +644,7 @@ class lmafile(object):
                 parts = line.decode("utf-8").split()
                 name = ' '.join(parts[2:-6])
                 sta_info, code = parts[0:2]
-                yield (code, name) + tuple(parts[-6:-2])
+                yield (code, name) + tuple(parts[-6:])
 
     def gen_sta_data(self):
         """ Parse the station data table from the header. Some files do not
@@ -488,7 +693,7 @@ class lmafile(object):
         lmad.insert(1,'Datetime',pd.to_timedelta(lmad['time (UT sec of day)'], unit='s')+self.startday)
 
         # Parse out which stations contributed into new columns for each station
-        col_names = self.stations.Name.values
+        col_names = self.stations.Name.values.copy()
         self.mask_ints = mask_to_int(lmad["mask"])
         for index,items in enumerate(self.maskorder[::-1]):
             col_names[index] = items+'_'+self.stations.Name.values[index]
