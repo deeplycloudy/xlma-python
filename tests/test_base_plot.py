@@ -4,6 +4,7 @@ from pyxlma.plot.xlma_base_plot import *
 from pyxlma.plot.xlma_plot_feature import *
 from pyxlma.lmalib.grid import *
 from pyxlma.lmalib.io import read as lma_read
+from glmtools.io.glm import GLMDataset
 import datetime as dt
 import pandas as pd
 import matplotlib.dates as md
@@ -185,4 +186,23 @@ def test_plot_feature_ndln_polarity():
     bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
     nldn_data = lma_read.nldn('examples/network_samples/gld360enldnns_20231224_daily_v1_lit.raw')
     plot_2d_network_points(bk_plot, nldn_data, color_by='polarity')
+    return bk_plot.fig
+
+
+@pytest.mark.mpl_image_compare
+def test_plot_feature_glm_events():
+    start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
+    end_time = start_time + dt.timedelta(seconds=60)
+    bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
+    glm_data = GLMDataset('examples/network_samples/OR_GLM-L2-LCFA_G16_s20233580057000_e20233580057200_c20233580057222.nc')
+    plot_glm_events(glm_data.dataset, bk_plot, fake_alt=[0, 0.25], poly_kwargs={'cmap' : 'plasma'}, vlines_kwargs={'linewidths' : 0.5}, should_parallax_correct=False)
+    return bk_plot.fig
+
+@pytest.mark.mpl_image_compare
+def test_plot_feature_glm_events_parallax():
+    start_time = dt.datetime(2023, 12, 24, 0, 57, 0, 0)
+    end_time = start_time + dt.timedelta(seconds=60)
+    bk_plot = BlankPlot(start_time, bkgmap=True, xlim=[-103.5, -99.5], ylim=[31.5, 35.5], zlim=[0, 20], tlim=[start_time, end_time], title='XLMA Test Plot')
+    glm_data = GLMDataset('examples/network_samples/OR_GLM-L2-LCFA_G16_s20233580057000_e20233580057200_c20233580057222.nc')
+    plot_glm_events(glm_data.dataset, bk_plot, fake_alt=[0, 0.25], poly_kwargs={'cmap' : 'plasma'}, vlines_kwargs={'linewidths' : 0.5}, should_parallax_correct=True)
     return bk_plot.fig
