@@ -420,8 +420,8 @@ class lmafile(object):
                      'sources','percent','<P/P_m>','active'])
         # Drop the station name column that has a redundant station letter code
         # as part of the name and join on station letter code.
-        station_combo =  stations.set_index('ID').drop(columns=['Name']).join(
-                             overview.set_index('ID'))
+        station_combo = stations.set_index(['ID','Name']).join(
+                overview.set_index(['ID','Name']))
         self.stations = station_combo.reset_index(level=station_combo.index.names)
 
     def gen_sta_info(self):
