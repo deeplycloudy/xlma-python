@@ -43,15 +43,15 @@ class CoordinateSystem(object):
 
     def coordinates():
         """Return a tuple of standarized coordinate names"""
-        raise NotImplemented
+        raise NotImplementedError()
 
     def fromECEF(self, x, y, z):
         """Take ECEF x, y, z values and return x, y, z in the coordinate system defined by the object subclass"""
-        raise NotImplemented
+        raise NotImplementedError()
 
     def toECEF(self, x, y, z):
         """Take x, y, z in the coordinate system defined by the object subclass and return ECEF x, y, z"""
-        raise NotImplemented
+        raise NotImplementedError()
 
 
 class GeographicSystem(CoordinateSystem):
