@@ -7,6 +7,7 @@ from matplotlib.dates import num2date
 
 from pyxlma.plot.xlma_plot_feature import color_by_time, plot_points, setup_hist, plot_3d_grid, subset
 from pyxlma.plot.xlma_base_plot import subplot_labels, inset_view, BlankPlot
+from pyxlma.xarray_util import generic_subset
 
 from ipywidgets import Output
 output = Output()
@@ -357,3 +358,51 @@ class InteractiveLMAPlot(object):
 
 
 
+def get_glm_plot_subset(interactive_plot, glm):
+    """ Use the plot limits in the interactive plot to subset GLM data.
+    
+        glm may be an xarray Dataset or a glmtools GLMDataset.
+    
+        Returns in xarray Dataset subsetted to match the plot.
+    """
+    
+    from glmtools.io.glm import GLMDataset
+    
+    # We need the subsetting functionality attached to the GLMDataset class, which 
+    # can prune the flash-group-event hierarchy to a self-consistent sub-tree.
+    if isinstance(glm, xr.Dataset):
+        glm = GLMDataset(glm, check_area_units=False, change_energy_units=False)
+    else:
+        assert isinstance(glm, GLMDataset)
+
+    xlim = interactive_plot.bounds['x']
+    ylim = interactive_plot.bounds['y']    
+    tlim = interactive_plot.bounds['t']
+    start, end = np.datetime64(tlim[0]), np.datetime64(tlim[1])
+    
+    
+    # Find the groups in the time range.
+    # In some GLM datasets, perhaps all, the event times are incorrect.
+    # Probably missing some unsigned stuff.
+    # That is why above we use the group times only and select events by 
+    # parent ID through reduce_to_entities
+    # print(glm_sub.event_time_offset.min().data, glm_sub.event_time_offset.max().data)
+    # print(glm_sub.group_time_offset.min().data, glm_sub.group_time_offset.max().data)
+    # print(glm_sub)
+    
+    glm_bounds = {'group_time_offset':slice(start,end),}
+    glm_sub = generic_subset(glm.dataset, glm.dataset.group_id.dims[0], glm_bounds)
+    glm_sub = glm.reduce_to_entities('group_id', glm_sub.group_id.data)
+
+    # Recreate the GLMDataset from the reduced dataset.
+    # There's probably some way to do this all in one step, perhaps by using the 
+    # common set of group_ids. But it may not be faster in the end anyway.
+    glm = GLMDataset(glm_sub, check_area_units=False, change_energy_units=False)
+    
+    # Find the events that are in the view, and keep only their parent groups.
+    glm_bounds = {'event_lat':slice(ylim[0], ylim[1]),
+                  'event_lon':slice(xlim[0], xlim[1])}
+    glm_sub = generic_subset(glm_sub, glm_sub.event_id.dims[0], glm_bounds)
+    glm_sub = glm.reduce_to_entities('group_id', glm_sub.event_parent_group_id.data)
+                  
+    return glm_sub
