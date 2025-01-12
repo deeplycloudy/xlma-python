@@ -1,27 +1,33 @@
 import numpy as np
-from numpy import radians, cos, sin, asin, sqrt
+from numpy import radians, cos, sin, arcsin, sqrt
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def haversine(lat0, lon0, lat, lon):
 
       R = 6378.137e3 # this is in meters.  For Earth radius in kilometers use 6372.8 km
 
-      dLat = radians(lat - lat)
-      dLon = radians(lon - lon)
-      lat1 = radians(lat)
+      dLat = radians(lat - lat0)
+      dLon = radians(lon - lon0)
+      lat1 = radians(lat0)
       lat2 = radians(lat)
 
       a = sin(dLat/2)**2 + cos(lat1)*cos(lat2)*sin(dLon/2)**2
-      c = 2*asin(sqrt(a))
+      c = 2*arcsin(sqrt(a))
 
       return R * c
 
 
 def get_time_distance(lat, lon, time, lat0, lon0, time0):
-    lat0=lat0*np.ones_like
-
+    lat0=lat0*np.ones_like(lat)
+    lon0=lon0*np.ones_like(lon)
+    dt = time-time0
+    
     distance_from_origin = (haversine(lat0,lon0,lat,lon))
-    time_from_origin = ((time-time0).astype('timedelta64[ns]').astype(float)/1e9)
+    if(type(dt) == pd.core.series.Series):
+        dt = dt.to_numpy()
+        
+    time_from_origin = ((dt).astype('timedelta64[ns]').astype(float)/1e9)
     return distance_from_origin, time_from_origin
 
 
@@ -40,9 +46,11 @@ def time_distance_plot_interactive(interactive_lma, ax):
     return art_out
     
 
-def time_distance_plot(ax, time, distance, m_reference_lines = 10, **kwargs):
+def time_distance_plot(ax, time, distance, pad_sec = 10, **kwargs):
+    m_reference_lines = 10
     m = -m_reference_lines
-    x = np.linspace(0, time*-1+m_reference_lines, 100)
+    dt = time[-1]-time[0]
+    x = np.linspace(0, dt + pad_sec, 100)
     y = x * 2 * 10**4
     yy = x * 10**5
     yyy = x * 10**6
