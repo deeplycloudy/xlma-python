@@ -68,7 +68,7 @@ def time_distance_plot(ax, time, distance, m_reference_lines = 10, **kwargs):
     ax.set_ylim(0, max(distance)+1000)
     ax.set_xlim(-0.05, max(time)+0.1) 
     
-    sc = ax.scatter(time, distance, zorder=10, c=altitude, cmap="cool", vmin=0, vmax=6)
+    sc = ax.scatter(time, distance, **kwargs)
     art_out.append(sc)
     #art = ax.legend(title = "Leader Type Key", loc = 2, fontsize=12, title_fontsize=16, framealpha=1)
     #art_out.extend(art)
