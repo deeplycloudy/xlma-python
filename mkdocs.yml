@@ -16,7 +16,9 @@ nav:
   - API Reference:
       - coords:
         - api/coords/index.md
-        - api/coords/transforms.md 
+        - api/coords/transforms.md
+      - xarray:
+        - api/xarray/index.md
       #     - GeographicSystem: api/coords/GeographicSystem.md
       #     - MapProjection: api/coords/MapProjection.md
       #     - PixelGrid: api/coords/PixelGrid.md

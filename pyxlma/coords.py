@@ -833,11 +833,11 @@ class TangentPlaneCartesianSystem(CoordinateSystem):
 
         Parameters
         ----------
-        X : float or array_like
+        x : float or array_like
             ECEF X in meters from the center of the Earth.
-        Y : float or array_like
+        y : float or array_like
             ECEF Y in meters from the center of the Earth.
-        Z : float or array_like
+        z : float or array_like
             ECEF Z in meters from the center of the Earth.
 
         Returns
