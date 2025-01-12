@@ -2,16 +2,22 @@ from collections import defaultdict
 import xarray as xr
 import numpy as np
 
+
 def get_1d_dims(d):
-    """
-    Find all dimensions in a dataset that are purely 1-dimensional,
-    i.e., those dimensions that are not part of a 2D or higher-D
-    variable.
+    """Find all dimensions in an [`xarray.Dataset`](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html) that are purely 1-dimensional.
     
-    arguments
-        d: xarray Dataset
-    returns
-        dims1d: a list of dimension names
+    Finds names of dimensions on the provided dataset that are used in 1D variables.
+    Excludes dimensions that are part of a 2D or higher-D variable.
+    
+    Parameters
+    ----------
+    d : xarray.Dataset
+        The dataset to find 1D dimensions in.
+
+    Returns
+    -------
+    dims1d : list
+        A list of dimension names that are only used for 1D variables.
     """
     # Assume all dims coorespond to 1D vars
     dims1d = list(d.dims.keys())
@@ -21,16 +27,22 @@ def get_1d_dims(d):
                 if vardim in dims1d:
                     dims1d.remove(str(vardim))
     return dims1d
-    
+
+
 def gen_1d_datasets(d):
-    """
-    Generate a sequence of datasets having only those variables
+    """Generate a sequence of datasets having only those variables
     along each dimension that is only used for 1-dimensional variables.
     
-    arguments
-        d: xarray Dataset
-    returns
-        generator function yielding a sequence of single-dimension datasets
+    Parameters
+    ----------
+    d : xarray.Dataset
+        The dataset to generate 1D datasets from.
+
+    Yields
+    ------
+    xarray.Dataset
+        A dataset containing only variables along a single dimension.
+        Each yielded dataset corresponds to one of the 1-dimensional dimensions identified in the input dataset `d`.
     """
     dims1d = get_1d_dims(d)
 #     print(dims1d)
@@ -39,35 +51,51 @@ def gen_1d_datasets(d):
         all_dims.remove(dim)
         yield d.drop_dims(all_dims)
 
-def get_1d_datasets(d):
-    """
-    Generate a list of datasets having only those variables
+
+def get_1d_datasets(d, ):
+    """Generate a list of datasets having only those variables
     along each dimension that is only used for 1-dimensional variables.
     
-    arguments
-        d: xarray Dataset
-    returns
+    Parameters
+    ----------
+    d : xarray.Dataset
+        The dataset to generate 1D datasets from.
+    
+        
+    Returns
+    -------
+    single_dim_ds : list
         a list of single-dimension datasets
     """
-    return [d1 for d1 in gen_1d_datasets(d, *args, **kwargs)]
+    single_dim_ds = [d1 for d1 in gen_1d_datasets(d, *args, **kwargs)]
+    return single_dim_ds
+
 
 def get_scalar_vars(d):
+    
     scalars = []
     for varname, var in d.variables.items():
         if len(var.dims) == 0:
             scalars.append(varname)
     return scalars
 
-def concat_1d_dims(datasets, stack_scalars=None):
-    """
+
+def concat_1d_dims(datasets, stack_scalars=False):
+    """Concatenate a list of xarray Datasets along 1D dimensions only.
+
     For each xarray Dataset in datasets, concatenate (preserving the order of datasets)
     all variables along dimensions that are only used for one-dimensional variables.
     
-    arguments
-        d: iterable of xarray Datasets
-        stack_scalars: create a new dimension named with this value
-            that aggregates all scalar variables and coordinates
-    returns
+    Parameters
+    ----------
+    d : iterable of xarray.Dataset
+        The datasets to concatenate.
+    stack_scalars : bool, default=False
+        if True, create a new dimension named with this value that aggregates all scalar variables and coordinates
+    
+    Returns
+    -------
+    unified : xarray.Dataset
         a new xarray Dataset with only the single-dimension variables
     """
     # dictionary mapping dimension names to a list of all
