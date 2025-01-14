@@ -2,6 +2,19 @@ site_name: XLMA Python
 
 theme:
   name: material
+  palette: 
+
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 plugins:
   - search
@@ -19,9 +32,6 @@ nav:
         - api/coords/transforms.md
       - xarray:
         - api/xarray/index.md
-      #     - GeographicSystem: api/coords/GeographicSystem.md
-      #     - MapProjection: api/coords/MapProjection.md
-      #     - PixelGrid: api/coords/PixelGrid.md
-      #     - GeostationaryFixedGridSystem: api/coords/GeostationaryFixedGridSystem.md
-      #     - RadarCoordinateSystem: api/coords/RadarCoordinateSystem.md
-      #     - TangentPlaneCartesianSystem: api/coords/TangentPlaneCartesianSystem.md
+      - lmalib:
+        - api/lmalib/flash.md
+
