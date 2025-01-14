@@ -29,6 +29,7 @@ plugins:
         python:
           options:
             docstring_style: numpy
+            show_source: false
 
 nav:
   - Home: index.md
@@ -41,4 +42,7 @@ nav:
       - lmalib:
         - api/lmalib/flash.md
         - api/lmalib/cf_netcdf.md
+        - api/lmalib/read.md
+        - api/lmalib/lma_intercept_rhi.md
+
 
