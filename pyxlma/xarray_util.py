@@ -72,7 +72,20 @@ def get_1d_datasets(d, ):
 
 
 def get_scalar_vars(d):
+    """Find all variables in an [`xarray.Dataset`](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html) that are scalars.
+
+    All variables in the dataset that have no dimensions are considered scalars.
+
+    Parameters
+    ----------
+    d : xarray.Dataset
+        The dataset to find scalar variables in.
     
+    Returns
+    -------
+    scalars : list
+        A list of variable names that are scalars.
+    """
     scalars = []
     for varname, var in d.variables.items():
         if len(var.dims) == 0:
@@ -88,7 +101,7 @@ def concat_1d_dims(datasets, stack_scalars=False):
     
     Parameters
     ----------
-    d : iterable of xarray.Dataset
+    datasets : iterable of xarray.Dataset
         The datasets to concatenate.
     stack_scalars : bool, default=False
         if True, create a new dimension named with this value that aggregates all scalar variables and coordinates

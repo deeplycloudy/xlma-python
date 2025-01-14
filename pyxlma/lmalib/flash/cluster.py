@@ -6,14 +6,27 @@ from pyxlma.coords import GeographicSystem
 import pyxlma.lmalib.io.cf_netcdf as cf_netcdf
 
 def cluster_dbscan(X, Y, Z, T, min_points=1):
-    """ Identify clusters in spatiotemporal data X, Y, Z, T.
+    """Identify clusters in spatiotemporal data X, Y, Z, T.
 
-    min_points is used as min_samples in the call to DBSCAN.
+    Parameters
+    ----------
+    X : array_like
+        The x coordinate of the data points.
+    Y : array_like
+        The y coordinate of the data points.
+    Z : array_like
+        The z coordinate of the data points.
+    T : array_like
+        The time coordinate of the data points.
+    min_points : int, default=1
+        Used as the min_samples parameter in the call to [DBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html).
 
-    Returns an unsigned 64 bit integer array of cluster labels.
-    Noise points identified by DBSCAN are assigned the maximum value
-    that can be represented by uint64, i.e., np.iinfo(np.uint64).max or
-    18446744073709551615.
+    Returns
+    -------
+    labels : np.ndarray
+        an unsigned 64 bit integer array of cluster labels.
+        Noise points identified by DBSCAN are assigned the maximum value that can be represented by uint64, 
+        i.e., np.iinfo(np.uint64).max or 18446744073709551615.
     """
     from sklearn.cluster import DBSCAN
     coords = np.vstack((X, Y, Z, T)).T
@@ -25,12 +38,25 @@ def cluster_dbscan(X, Y, Z, T, min_points=1):
     return labels
 
 def cluster_flashes(events, distance=3000.0, time=0.15):
-    """
+    """Cluster LMA VHF sources into flashes.
 
-    events: xarray dataset conforming to the pyxlma CF NetCDF format
+    Parameters
+    ----------
+    events : xarray.Dataset
+        LMA dataset with event position and time and network center position.
+    distance : float, default=3000.0
+        Spatial separation in meters. Used for normalization of space.
+    time : float, default=0.15
+        Temporal separation in seconds. Used for normalization of time.
 
-    distance: spatial separation in meters. Used for normalization of
-    time: number
+    Returns
+    -------
+    ds : xarray.Dataset
+        LMA dataset with added flash_id and event_parent_flash_id variables.
+
+    Notes
+    -----
+    Additional data variables for flash properties are created, but are filled with NaN. To compute these properties, use the `pyxlma.lmalib.flash.properties.flash_stats` function.
     """
 
     geoCS = GeographicSystem()

@@ -5,6 +5,32 @@ from scipy.special import factorial
 from pyxlma.lmalib.traversal import OneToManyTraversal
 
 def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
+    """Converts lat, lon, altitude points to x, y, z distances from a center point.
+    
+    Parameters
+    ----------
+    lon : array_like
+        Longitude of points in degrees.
+    lat : array_like
+        Latitude of points in degrees.
+    alt : array_like
+        Altitude of points in meters.
+    lonctr : float
+        Longitude of the center point in degrees.
+    latctr : float
+        Latitude of the center point in degrees.
+    altctr : float
+        Altitude of the center point in meters.
+    
+    Returns
+    -------
+    x : array_like
+        x distance in meters from the center point.
+    y : array_like
+        y distance in meters from the center point.
+    z : array_like
+        z distance in meters from the center point.
+    """
     Re = 6378.137e3           #Earth's radius in m
     latavg, lonavg, altavg = latctr, lonctr, altctr
     x = Re * (np.radians(lon) - np.radians(lonavg)) * np.cos(np.radians(latavg))
@@ -13,9 +39,30 @@ def local_cartesian(lon, lat, alt, lonctr, latctr, altctr):
     return x,y,z
 
 def hull_volume(xyz):
-    """ Calculate the volume of the convex hull of 3D (X,Y,Z) LMA data.
-        xyz is a (N_points, 3) array of point locations in space. """
-    assert xyz.shape[1] == 3
+    """Calculate the volume of the convex hull of 3D (X,Y,Z) LMA data.
+        
+    Parameters
+    ----------
+    xyz : array_like
+        A (N_points, 3) array of point locations in space.
+    
+    Returns
+    -------
+    volume : float
+        The volume of the convex hull.
+    vertices : array_like
+        The vertices of the convex hull.
+    simplex_volumes : array_like
+        The volumes of the simplices that make up the convex hull.
+
+    Raises
+    ------
+    QhullError
+        If the convex hull cannot be computed. This is usually because too few points with little spacing are provided. See `perturb_vertex`.
+    
+    """
+    if xyz.shape[1] != 3:
+        raise ValueError("Input must be an array of shape (N_points, 3).")
 
     tri = Delaunay(xyz[:,0:3])
     vertices = tri.points[tri.simplices]
@@ -37,11 +84,38 @@ def hull_volume(xyz):
     volume=np.sum(np.abs(simplex_volumes))
     return volume, vertices, simplex_volumes
 
+
 def perturb_vertex(x,y,z,machine_eps=1.0):
-    """ With only a few points, QHull can error on a degenerate first simplex -
+    """Add a random, small perturbation to an x, y, z point.
+    
+    With only a few points, QHull can error on a degenerate first simplex -
     all points are coplanar to machine precision. Add a random perturbation no
     greater than machine_eps to the first point in x, y, and z. Rerun QHull
     with the returned x,y,z arrays.
+
+    Parameters
+    ----------
+    x : array_like
+        x coordinates of points.
+    y : array_like
+        y coordinates of points.
+    z : array_like
+        z coordinates of points.
+    machine_eps : float, default=1.0
+        The maximum absolute value of the perturbation. (Perturbation can be positive or negative.)
+
+    Returns
+    -------
+    x : array_like
+        x coordinates of points with perturbation added to the first point.
+    y : array_like
+        y coordinates of points with perturbation added to the first point.
+    z : array_like
+        z coordinates of points with perturbation added to the first point.
+    
+    Notes
+    -----
+    This function is provided to work around the QHullError that can be raised by `pyxlma.lmalib.flash.properties.hull_volume` when the input points are coplanar.
     """
     perturb = 2*machine_eps*np.random.random(size=3)-machine_eps
     x[0] += perturb[0]
@@ -50,6 +124,22 @@ def perturb_vertex(x,y,z,machine_eps=1.0):
     return (x,y,z)
 
 def event_hull_area(x,y,z):
+    """Compute the 2D area of the convex hull of a set of x, y points.
+
+    Parameters
+    ----------
+    x : array_like
+        (N_points, 1) array of x coordinates of points.
+    y : array_like
+        (N_points, 1) array of y coordinates of points.
+    z : array_like
+        (N_points, 1) array of z coordinates of points [unused].
+
+    Returns
+    -------
+    area : float
+        The area of the convex hull of the points.
+    """
     pointCount = x.shape[0]
     area = 0.0
     if pointCount > 3:
@@ -79,6 +169,22 @@ def event_hull_area(x,y,z):
     return area
 
 def event_hull_volume(x,y,z):
+    """Compute the 3D volume of the convex hull of a set of x, y points.
+
+    Parameters
+    ----------
+    x : array_like
+        (N_points, 1) array of x coordinates of points.
+    y : array_like
+        (N_points, 1) array of y coordinates of points.
+    z : array_like
+        (N_points, 1) array of z coordinates of points.
+
+    Returns
+    -------
+    volume : float
+        The volume of the convex hull of the points.
+    """
     pointCount = x.shape[0]
     volume = 0.0
     if pointCount > 4:
@@ -96,12 +202,20 @@ def event_hull_volume(x,y,z):
 
 
 def rrbe(zinit):
-    """
-    Compute the runway breakeven threshold electric fields given
-    an initiation altitude for a lightning flash assuming a
-    surface breakdown electric field threshold of 281 kVm^-1 [Marshall et al. 2005].
+    """Compute the runway breakeven threshold electric field.
 
-    Returns e_init in kVm^1.
+    Uses a given initiation altitude for a lightning flash assuming a surface breakdown electric field
+    threshold of 281 kV/m, following [Marshall et al. 2005](https://doi.org/10.1029/2004GL021802).
+
+    Parameters
+    ----------
+    zinit : float
+        The altitude of the flash initiation point in meters.
+
+    Returns
+    -------
+    e_init : float
+        The electric field at the initiation point in kV/m.
     """
     #Compute scaled air density with height.
     rho_air = 1.208 * np.exp(-(zinit/8.4))
@@ -109,17 +223,29 @@ def rrbe(zinit):
     return(e_init)
 
 def event_discharge_energy(z,area):
-    """
-       Estimate the electrical energy discharged by lightning flashes
-       using a simple capacitor model.
+    """Estimate the electrical energy discharged by lightning flashes using a simple capacitor model.
 
-       Note: -) Model assumes plates area defined by convex hull area, and separation
-                between the 73 and 27th percentiles of each flash's vertical source
-                distributions.
-             -) Only the initiation electric field (e_init) between the plates at the height
-                of flash initiation to find the critical charge density (sigma_crit) on the plates,
-                sigma_crit = epsilon * e_init -> epsilon = permitivity of air
-             -) Model considers the ground as a perfect conductor (image charging),
+    Parameters
+    ----------
+    z : array_like
+        The altitude of the flash initiation points.
+    area : array_like
+        The area of the convex hull of the flash initiation points.
+
+    Returns
+    -------
+    energy : array_like
+        The energy discharged by the flash in Joules.
+
+    Notes
+    -----
+    - Model assumes plates area defined by convex hull area, and separation
+    between the 73 and 27th percentiles of each flash's vertical source
+    distributions.
+    - Only the initiation electric field (e_init) between the plates at the height
+    of flash initiation to find the critical charge density (sigma_crit) on the plates,
+    sigma_crit = epsilon * e_init -> epsilon = permitivity of air
+    - Model considers the ground as a perfect conductor (image charging),
 
     """
     #Compute separation between charge plates (d) and critial charge density (sigma_crit):
@@ -139,7 +265,39 @@ def event_discharge_energy(z,area):
 
 
 def flash_stats(ds, area_func=None, volume_func=None):
+    """Compute flash statistics from LMA data.
 
+    Calculates the following variables for each flash in the dataset:
+
+    - flash_time_start
+    - flash_time_end
+    - flash_duration
+    - flash_init_latitude
+    - flash_init_longitude
+    - flash_init_altitude
+    - flash_area
+    - flash_volume
+    - flash_energy
+    - flash_center_latitude
+    - flash_center_longitude
+    - flash_center_altitude
+    - flash_power
+    - flash_event_count
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        An LMA dataset that has flash clustering applied (i.e., has a `flash_id` and `event_parent_flash_id` variable).
+    area_func : callable, optional
+        A function that computes the area of the convex hull of a set of points. If None, `event_hull_area` is used.
+    volume_func : callable, optional
+        A function that computes the volume of the convex hull of a set of points. If None, `event_hull_volume` is used.
+    
+    Returns
+    -------
+    ds : xarray.Dataset
+        The original dataset with the computed flash statistics added as variables.
+    """
     if area_func is None:
         area_func = lambda df: event_hull_area(df['event_x'].array,
                                                df['event_y'].array,
@@ -274,14 +432,28 @@ def flash_stats(ds, area_func=None, volume_func=None):
 
     return ds
 
-def filter_flashes(ds, **kwargs):
-    """ each kwarg is a flash variable name, with tuple of minimum and maximum
-        values for that kwarg. min and max are inclusive (<=, >=). If either
-        end of the range can be None to skip it.
+def filter_flashes(ds, prune=True, **kwargs):
+    """Filter flashes by their properties.
+    
+    Allows removing unwanted flashes from an LMA dataset based on their properties.
+    After the flashes are removed by the criteria, the dataset can be pruned to remove any events that
+    are not assoicated with any flashes (or events that were associated with now-removed flashes).
 
-        Also removes events not associated with any flashes if prune=True (default)
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        An LMA dataset that has flash clustering applied (i.e., has a `flash_id` and `event_parent_flash_id` variable).
+    prune : bool, default=True
+        If True, remove events not associated with any flashes.
+    **kwargs
+        Variable names and ranges to filter by. The name of the keyword argument is used as the variable name,
+        and ranges are given as a tuple of (min, max) values. Either end of the range can be None to skip it.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        The original dataset with the flashes filtered by the given criteria.
     """
-    prune = kwargs.pop('prune', True)
     # keep all points
     good = np.ones(ds.flash_id.shape, dtype=bool)
     # print("Starting flash count: ", good.sum())
