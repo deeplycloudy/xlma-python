@@ -1,3 +1,5 @@
+<img src="xlma_logo_big_big_ltg.svg" alt="logo" width="200"/>
+
 # xlma-python
 A future, Python-based version of xlma?
 
@@ -5,7 +7,7 @@ XLMA is a venerable IDL GUI program that diplays VHF Lightning Mapping Array dat
 
 Please use the issues tracker to discuss ideas and pull requests to contribute examples.
 
-# Installation
+## Installation
 Clone this repostiory install with pip.
 
 ```
@@ -16,7 +18,7 @@ pip install -e .
 
 Then, copy the `XLMA_plots.ipynb` notebook to wherever you'd like and start changing files, dates and times to show data from your case of interest. There also a notebook showing how to do flash sorting and save a new NetCDF file with those data.
 
-# Dependencies
+## Dependencies
 Required:
 
 - xarray (I/O requires the netcdf4 backend)
@@ -36,6 +38,7 @@ Plotting:
 - metpy (optionally, for US county lines)
 
 GLM Plotting:
+
 - glmtools (https://github.com/deeplycloudy/glmtools)
 
 Interactive:
@@ -52,23 +55,23 @@ Building:
 - lmatools (https://github.com/deeplycloudy/lmatools)
 - ...and all of the above
 
-# Technical architecture
+## Technical architecture
 
 We envision a two-part package that keeps a clean separation between the core data model, analysis, and display. XLMA utilized a large, global `state` structure that stored all data, as well as the current data selection corresponding to the view in the GUI. Analysis then operated on whatever data was in the current selection.
 
-## Data model and subsetting
+### Data model and subsetting
 
 `xarray` is the obvious choice for the core data structure, because it supports multidimensional data with metadata for each variable, subsetting of all varaibles sharing a dimension, and fast indexing. Data can be easily saved and read from the NetCDF format, and converted from ASCII to `Dataset` using standard tools.
 
-## Analysis
+### Analysis
 
 Some core features of LMA data analysis will be built in, TBD after surveying capabilities in XLMA.
 
-## Display
+### Display
 
 Keeping the core data structure and selection operations separate from dislpay is good programming practice. It is doubly important in Python, where there is not one obvious solution for high performance *and* publication-quality graphics as in IDL.
 
-### Plotting library
+#### Plotting library
 
 There are many options, so we want a design that:
 1. Permits a GUI to provide the bounds of the current view (or a polygon lasso) to the data model, changing the subset
@@ -81,7 +84,7 @@ There are many options, so we want a design that:
 - Datashader might be useful as a method of data reduction prior to visualization even if we don't use Bokeh.
 - Yt - written by the astronomy community in Python … is it fast enough?
 
-### GUI
+#### GUI
 
 There is no obvious choice here, either.
 
@@ -90,7 +93,7 @@ There is no obvious choice here, either.
 - PyQT
 - [Glue](https://github.com/glue-viz/glue/wiki/SciPy-2019-Tutorial-on-Multi-dimensional-Linked-Data-Exploration-with-Glue) - seems about 60% there out of the box?! 
 
-# Prior art
+## Prior art
 
 - [`lmatools`](https://github.com/deeplycloudy/lmatools/)
   - Includes readers for LMA and NLDN data (using older methods from 2010)
