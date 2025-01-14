@@ -1,7 +1,25 @@
-from glmtools.io.glm import GLMDataset
 from pyxlma.xarray_util import concat_1d_dims
 
 def combine_glm_l2(filenames):
+    """Combine multiple GLM L2 files into a single dataset.
+
+    Reads and concatenates multiple GLM L2 files into a single dataset.
+
+    Parameters
+    ----------
+    filenames : list of str
+        List of filenames to read.
+    
+    Returns
+    -------
+    combo : xarray.Dataset
+        Combined GLM dataset.
+
+    Notes
+    -----
+    This function requires the `glmtools` package to be installed.
+    """
+    from glmtools.io.glm import GLMDataset
     scalar_dim = 'segment'
     datasets=[]
     for fn in filenames:

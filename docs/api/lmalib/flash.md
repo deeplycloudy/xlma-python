@@ -1,4 +1,4 @@
-# Flash Processing
+# Flash processing
 
 ::: pyxlma.lmalib.flash.cluster
 

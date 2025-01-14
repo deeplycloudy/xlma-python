@@ -209,7 +209,7 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
         the axes relative coordinates to plot the vertical lines for GLM events in the cross section, default [0, 1],
         the full height of the axes.
     should_parallax_correct : bool
-        whether to correct the GLM event locations for parallax effect. See https://doi.org/10.1029/2019JD030874 for more information.
+        whether to correct the GLM event locations for parallax effect. See [Bruning et. al 2019, figure 5](https://doi.org/10.1029/2019JD030874).
     poly_kwargs : dict
         dictionary of additional keyword arguments to be passed to matplotlib Polygon
     vlines_kwargs : dict

@@ -139,6 +139,10 @@ def event_hull_area(x,y,z):
     -------
     area : float
         The area of the convex hull of the points.
+
+    Notes
+    -----
+    For more info on convex hull area and flash size, see [Bruning and MacGorman 2013](https://doi.org/10.1175/JAS-D-12-0289.1).
     """
     pointCount = x.shape[0]
     area = 0.0
