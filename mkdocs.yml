@@ -1,4 +1,5 @@
 site_name: XLMA Python
+repo_name: deeplycloudy/xlma-python
 repo_url: https://github.com/deeplycloudy/xlma-python
 
 
@@ -44,5 +45,6 @@ nav:
         - api/lmalib/cf_netcdf.md
         - api/lmalib/read.md
         - api/lmalib/lma_intercept_rhi.md
+        - api/lmalib/grid.md
 
 
