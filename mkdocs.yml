@@ -46,5 +46,6 @@ nav:
         - api/lmalib/read.md
         - api/lmalib/lma_intercept_rhi.md
         - api/lmalib/grid.md
+        - api/lmalib/traversal.md
 
 
