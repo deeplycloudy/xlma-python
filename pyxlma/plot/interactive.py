@@ -25,25 +25,32 @@ class AccumulatorAxesManager(object):
 
 
 class Accumulator(object):
-    """ Provides for event callbacks for matplotlib drag/release events and
-        axis limit changes by accumulating a series of event occurrences.
-        Produces a single call to func after a user interacts with the plot.
-        Also stores the axes that got the event, and passes them to func.
-        Sample usage:
-        from pylab import figure, show
-        def simple(axes):
-            print "update ", axes
-        a = Accumulator(simple)
-        f=figure()
-        ax=f.add_subplot(111)
-        plt=ax.plot(range(10))
-        f.canvas.mpl_connect('draw_event', a.draw_event)
-        f.canvas.mpl_connect('button_release_event', a.mouse_up_event)
-        f.canvas.mpl_connect('button_press_event', a.mouse_down_event)
-        ax.callbacks.connect('xlim_changed', a.axis_limit_changed)
-        ax.callbacks.connect('ylim_changed', a.axis_limit_changed)
-        show()
-        """
+    """Provides for event callbacks for matplotlib drag/release events and axis limit changes by accumulating a series of event occurrences.
+    
+    Produces a single call to func after a user interacts with the plot.
+    Also stores the axes that got the event, and passes them to func.
+    
+    Example
+    -------
+    ```py
+    from pyxlma.plot.interactive import Accumulator
+    from matplotlib import pyplot as plt
+
+    def simple(axes):
+        print("update ", axes)
+    
+    a = Accumulator(simple)
+    f=plt.figure()
+    ax=f.add_subplot(111)
+    plt=ax.plot(range(10))
+    f.canvas.mpl_connect('draw_event', a.draw_event)
+    f.canvas.mpl_connect('button_release_event', a.mouse_up_event)
+    f.canvas.mpl_connect('button_press_event', a.mouse_down_event)
+    ax.callbacks.connect('xlim_changed', a.axis_limit_changed)
+    ax.callbacks.connect('ylim_changed', a.axis_limit_changed)
+    plt.show()
+    ```
+    """
 
     def __init__(self, func):
         self.func=func
@@ -52,21 +59,27 @@ class Accumulator(object):
         # print('did init')
 
     def reset(self):
-        """ Reset flags after the update function is called.
-            Mouse is tracked separately.
-            """
+        """Reset flags after the update function is called. Mouse is tracked separately."""
         # print('reset')
         self.limits_changed = 0
         self.got_draw = False
         self.axes = None
 
     def axis_limit_changed(self, ax):
+        """Bindable function for matplotlib axis limit change events.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes that had its limits changed.
+        """
         # print('ax limits')
         self.limits_changed += 1
         self.axes = ax
         self.check_status()
 
     def draw_event(self, event):
+        """Bindable function for matplotlib draw events."""
         # print('draw event')
         if self.limits_changed > 0:
             # only care about draw events if one of the axis limits has changed
@@ -74,6 +87,7 @@ class Accumulator(object):
         self.check_status()
 
     def mouse_up_event(self, event):
+        """Bindable function for matplotlib mouse up events."""
         # print('mouse up')
         self.mouse_up = True
         self.check_status()
@@ -83,7 +97,7 @@ class Accumulator(object):
         self.mouse_up = False
 
     def both_limits_changed(self):
-        """ Both x and y limits changed and the mouse is up (not dragging)
+        """Both x and y limits changed and the mouse is up (not dragging)
             This condition takes care of the limits being reset outside of a
             dragging context, such as the view-reset (home) button on the
             Matplotlib standard toolbar.
@@ -114,6 +128,24 @@ class Accumulator(object):
 
 
 def event_space_time_limits(ds):
+    """Get the limits of the event locations and times on an LMA dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        An LMA dataset.
+
+    Returns
+    -------
+    xlim : tuple
+        The minimum and maximum longitude of the events.
+    ylim : tuple
+        The minimum and maximum latitude of the events.
+    zlim : tuple
+        The minimum and maximum altitude of the events.
+    tlim : tuple
+        The minimum and maximum time of the events.
+    """
     xlim = ds.event_longitude.min().values, ds.event_longitude.max().values
     ylim = ds.event_latitude.min().values, ds.event_latitude.max().values
     zlim = ds.event_altitude.min().values/1000, ds.event_altitude.max().values/1000
@@ -124,14 +156,77 @@ def event_space_time_limits(ds):
 
 
 class InteractiveLMAPlot(object):
+    """Class representing an ipywidgets interactive LMA plot.
 
+    Visualization handled by matplotlib, interactivity handled by ipywidgets. Works with jupyter notebooks.
+
+    Attributes
+    ----------
+    ds : xarray.Dataset
+        The LMA dataset being plotted.
+    stationmin : int
+        The minimum number of stations a source must be received by to be plotted.
+    plot_camp : str
+        The colormap to use for the plot.
+    point_size : int
+        The size of the points in the plot.
+    clon : float
+        The longitude of the center of the 40km range ring.
+    clat : float
+        The latitude of the center of the 40km range ring.
+    widget_output : ipywidgets.Output
+        Handle to the output widget for the plot.
+    data_artists : list
+        List of all artists in the plot that change when the view subset changes.
+    bounds : dict
+        Dictionary of the current plot limits for x, y, z, and t.
+    lma_plot : BlankPlot
+        The BlankPlot object representing the current plot.
+    inset_ax : matplotlib.axes.Axes or cartopy.mpl.geoaxes.GeoAxes
+        The inset axes showing the current view subset.
+    this_lma_lon : numpy.ndarray
+        The longitude of the points of the current subset.
+    this_lma_lat : numpy.ndarray
+        The latitude of the points of the current subset.
+    this_lma_alt : numpy.ndarray
+        The altitude of the points of the current subset.
+    this_lma_time : numpy.ndarray
+        The time of the points of the current subset.
+    this_lma_sel : numpy.ndarray
+        A boolean mask representing the current subset.
+    
+
+
+    """
     def __init__(self, ds, chimax=1.0, stationmin=6,
             plot_cmap='plasma', point_size=5, clon=-101.5, clat=33.5,
             xlim=None, ylim=None, zlim=None, tlim=None):
-        """ lma_plot is as returned by pyxlma's BlankPlot
+        """Create an interactive LMA plot of some data.
 
-            xlim, ylim, zlim, and tlim are initial limits to use with the dataset;
-            otherwise, the limits are taken from the limits of the data in ds.
+        Parameters
+        ----------
+        ds : xarray.Dataset
+            An LMA dataset.
+        chimax : float, default=1.0
+            Sources with a chi2 value greater/worse than this value are excluded from the plot.
+        stationmin : int, default=6
+            Sources received by fewer than this number of stations are excluded from the plot.
+        plot_cmap : str, default='plasma'
+            The colormap to use for the plot.
+        point_size : int, default=5
+            The size of the points in the plot.
+        clon : float, default=-101.5
+            The longitude of the center of the 40km range ring.
+        clat : float, default=33.5
+            The latitude of the center of the 40km range ring.
+        xlim : tuple, optional
+            The initial longitude limits of the plot.
+        ylim : tuple, optional
+            The initial latitude limits of the plot.
+        zlim : tuple, optional
+            The initial altitude limits of the plot.
+        tlim : tuple, optional
+            The initial time limits of the plot.
         """
         xlim_ds, ylim_ds, zlim_ds, tlim_ds = event_space_time_limits(ds)
 
@@ -189,8 +284,12 @@ class InteractiveLMAPlot(object):
 
     @output.capture()
     def limits_changed(self, axes):
-        """ updates self.bounds from the limits of all axes in the plot making sure to
-            include changes from axes
+        """updates self.bounds from the limits of all axes in the plot to a changed axis
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes that had its limits changed.
         """
 
         # When we start out, we get the old axis limits, naively from the xy and tz
@@ -239,6 +338,7 @@ class InteractiveLMAPlot(object):
 
     @output.capture()
     def make_plot(self):
+        """Draw the LMA plot."""
         # pull out relevant plot params from object attributes
         ds = self.ds
         plot_s = self.point_size

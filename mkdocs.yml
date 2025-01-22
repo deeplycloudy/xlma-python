@@ -32,6 +32,11 @@ plugins:
             docstring_style: numpy
             show_source: false
 
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+
 nav:
   - Home: index.md
   - API Reference:
@@ -47,5 +52,8 @@ nav:
         - api/lmalib/lma_intercept_rhi.md
         - api/lmalib/grid.md
         - api/lmalib/traversal.md
-
+      - plot:
+        - api/plot/base_plot.md
+        - api/plot/plot_feature.md
+        - api/plot/interactive.md
 
