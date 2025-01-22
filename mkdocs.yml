@@ -31,7 +31,12 @@ plugins:
         python:
           options:
             docstring_style: numpy
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
             show_source: false
+            docstring_section_style: table
+            annotations_path: source
           import:
           - https://matplotlib.org/stable/objects.inv
           - https://numpy.org/doc/stable/objects.inv
@@ -40,6 +45,7 @@ plugins:
           - https://docs.xarray.dev/en/stable/objects.inv
           - https://pyproj4.github.io/pyproj/stable/objects.inv
           - https://pandas.pydata.org/pandas-docs/stable/objects.inv
+          - https://docs.python.org/3/objects.inv
 
 markdown_extensions:
   - pymdownx.highlight:
