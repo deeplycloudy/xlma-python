@@ -56,19 +56,19 @@ nav:
   - Home: index.md
   - API Reference:
       - coords:
-        - api/coords/index.md
-        - api/coords/transforms.md
+        - reference/coords/index.md
+        - reference/coords/transforms.md
       - xarray:
-        - api/xarray/index.md
+        - reference/xarray/index.md
       - lmalib:
-        - api/lmalib/flash.md
-        - api/lmalib/cf_netcdf.md
-        - api/lmalib/read.md
-        - api/lmalib/lma_intercept_rhi.md
-        - api/lmalib/grid.md
-        - api/lmalib/traversal.md
+        - reference/lmalib/flash.md
+        - reference/lmalib/cf_netcdf.md
+        - reference/lmalib/read.md
+        - reference/lmalib/lma_intercept_rhi.md
+        - reference/lmalib/grid.md
+        - reference/lmalib/traversal.md
       - plot:
-        - api/plot/base_plot.md
-        - api/plot/plot_feature.md
-        - api/plot/interactive.md
+        - reference/plot/base_plot.md
+        - reference/plot/plot_feature.md
+        - reference/plot/interactive.md
 
