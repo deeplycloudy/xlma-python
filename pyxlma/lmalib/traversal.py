@@ -42,10 +42,10 @@ class OneToManyTraversal(object):
         ----------
         dataset : xarray.Dataset
             The dataset to be traversed.
-        entity_id_vars : iterable of str
+        entity_id_vars : iterable[str]
             The names of the N variables to be traversed, in order from grandparent -> parent -> child -> grandchild -> ...
             Variables must be unique along the dimension of the variable.
-        parent_id_vars : iterable of str
+        parent_id_vars : iterable[str]
             The names of the N-1 variables that link the entities in entity_id_vars, in order from (grandparent_id_of_parent) -> (parent_id_of_child) -> (child_id_of_grandchild) -> ...
 
         """

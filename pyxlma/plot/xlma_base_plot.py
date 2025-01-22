@@ -100,13 +100,13 @@ class BlankPlot(object):
 
     Attributes
     ----------
-    zlim : iterable of floats
+    zlim : iterable[float]
         Altitude limits [min, max]
-    tlim : iterable of datetimes
+    tlim : iterable[datetime]
         Time limits [start, end]
-    ylim : iterable of floats
+    ylim : iterable[float]
         Latitude limits [min, max]
-    xlim : iterable of floats
+    xlim : iterable[float]
         Longitude limits [min, max]
     bkgmap : bool
         Whether ax_plan is a GeoAxes or standard matplotlib axis.
@@ -134,13 +134,13 @@ class BlankPlot(object):
             Whether to include background map projection and add country/state borders.
             If False, the axis will be a standard matplotlib axis. If True, the axis will be a cartopy GeoAxes with the PlateCarree projection.
             If MetPy is installed and importable, the plot will include US county borders.
-        zlim : iterable of floats
+        zlim : iterable[float]
             Altitude limits [min, max]
-        tlim : iterable of datetimes
+        tlim : iterable[datetime]
             Time limits [start, end]
-        ylim : iterable of floats
+        ylim : iterable[float]
             Latitude limits [min, max]
-        xlim : iterable of floats
+        xlim : iterable[float]
             Longitude limits [min, max]
         title : str
             The title to use for the plot.
@@ -304,9 +304,9 @@ def inset_view(plot, lon_data, lat_data, xlim, ylim, xdiv, ydiv,
         longitudes of sources to be added to the histogram
     lat_data : array_like
         latitudes of sources to be added to the histogram
-    xlim : iterable of floats
+    xlim : iterable[float]
         x (or longitude) limits [min, max]
-    ylim : iterable of floats
+    ylim : iterable[float]
         y (or latitude) limits [min, max]
     xdiv : float
         x (or longitude) bin width for histogram

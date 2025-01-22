@@ -459,7 +459,7 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
             and 'y' for EUMETSAT.
         sat_ecef_height : float, default=35785831.0
             Height of the satellite in meters above the specified ellipsoid. Defaults to the height of the GOES satellite.
-        ellipse : str or list, default='WGS84'
+        ellipse : str or iterable, default='WGS84'
             A string representing a known ellipse to pyproj, or iterable of [a, b] (semi-major
             and semi-minor axes) of the ellipse. Default is 'WGS84'.
         """

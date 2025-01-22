@@ -227,10 +227,10 @@ def events_to_grid(ds, dsg, grid_spatial_coords=['grid_time',
         LMA dataset with event data
     dsg : xarray.Dataset
         Dataset with grid edge variables and pixel IDs assigned
-    grid_spatial_coords : iterable of str, default=('grid_time', 'grid_altitude', 'grid_latitude', 'grid_longitude')
+    grid_spatial_coords : iterable[str], default=('grid_time', 'grid_altitude', 'grid_latitude', 'grid_longitude')
         Names of the grid edge variables in dsg in t, z, y, x order.
         If gridding to one of those coordinates is not needed, set it to None.
-    event_spatial_vars : iterable of str, default=('event_altitude', 'event_latitude', 'event_longitude')
+    event_spatial_vars : iterable[str], default=('event_altitude', 'event_latitude', 'event_longitude')
         Names of the event spatial variables in ds in t, z, y, x order.
     pixel_id_var : str, default='event_pixel_id'
         Name of the pixel ID variable to be created in ds.

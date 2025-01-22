@@ -101,7 +101,7 @@ def concat_1d_dims(datasets, stack_scalars=False):
     
     Parameters
     ----------
-    datasets : iterable of xarray.Dataset
+    datasets : iterable[xarray.Dataset]
         The datasets to concatenate.
     stack_scalars : bool, default=False
         if True, create a new dimension named with this value that aggregates all scalar variables and coordinates

@@ -56,7 +56,7 @@ def combine_datasets(lma_data):
 
     Parameters
     ----------
-    lma_data : iterable of xarray.Dataset
+    lma_data : iterable[xarray.Dataset]
         Collection of LMA datasets of the type returned by pyxlma.lmalib.io.cf_netcdf.new_dataset or pyxlma.lmalib.io.read.to_dataset
     
     Returns
@@ -129,7 +129,7 @@ def dataset(filenames, sort_time=True):
 
     Parameters
     ----------
-    filenames : str or iterable of str
+    filenames : str or iterable[str]
         The file or files to read in
     sort_time : bool, default=True
         Whether to sort the VHF events by time after reading in the data.
@@ -274,7 +274,7 @@ def nldn(filenames):
 
     Parameters
     ----------
-    filenames : str or iterable of str
+    filenames : str or iterable[str]
         The file or files to read in
     
     
@@ -333,7 +333,7 @@ def entln(filenames):
 
     Parameters
     ----------
-    filenames : str or iterable of str
+    filenames : str or iterable[str]
         The file or files to read in
     
     
