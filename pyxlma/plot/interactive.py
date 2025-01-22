@@ -174,7 +174,7 @@ class InteractiveLMAPlot(object):
         The longitude of the center of the 40km range ring.
     clat : float
         The latitude of the center of the 40km range ring.
-    widget_output : ipywidgets.Output
+    widget_output : ipywidgets.widgets.widget_output.Output
         Handle to the output widget for the plot.
     data_artists : list
         List of all artists in the plot that change when the view subset changes.

@@ -42,10 +42,10 @@ class OneToManyTraversal(object):
         ----------
         dataset : xarray.Dataset
             The dataset to be traversed.
-        entity_id_vars : list of str
+        entity_id_vars : iterable of str
             The names of the N variables to be traversed, in order from grandparent -> parent -> child -> grandchild -> ...
             Variables must be unique along the dimension of the variable.
-        parent_id_vars : list of str
+        parent_id_vars : iterable of str
             The names of the N-1 variables that link the entities in entity_id_vars, in order from (grandparent_id_of_parent) -> (parent_id_of_child) -> (child_id_of_grandchild) -> ...
 
         """
@@ -110,8 +110,8 @@ class OneToManyTraversal(object):
         If replicate_parent_ids has been used to create 'bottom_parent_top_id',
         where the top and bottom are separated by a few levels, it is possible
         to get an aggregate count (matching the top parent dimension) of the
-        children many generations below by doing:
-        ```
+        children many generations below:
+        ```py
             grouper = dataset.groupby('bottom_parent_top_id').groups
             count = [len(grouper[eid]) if (eid in grouper) else 0
                    for eid in d['top_id'].data]

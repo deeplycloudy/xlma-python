@@ -202,13 +202,13 @@ def find_points_near_rhi(event_longitude, event_latitude, event_altitude, event_
     
     Parameters
     ----------
-    event_longitude : array_link
+    event_longitude : array_like
         An array of the latitudes of events to be transformed.
-    event_latitude : array_link
+    event_latitude : array_like
         An array of the latitudes of events to be transformed.
-    event_altitude : array_link
+    event_altitude : array_like
         An array of the altitudes of events to be transformed.
-    event_time : array_link
+    event_time : array_like
         An array of the times of events to be transformed.
     radar_latitude : float
         Latitude of the radar in degrees.

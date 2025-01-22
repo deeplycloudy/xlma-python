@@ -308,7 +308,7 @@ class PixelGrid(CoordinateSystem):
     geosys : GeographicSystem
         GeographicSystem object used to convert pixel coordinates to ECEF.
     lookup : object
-        Lookup object used to find the nearest pixel to a given lat/lon. See __init__ for more details.
+        Lookup object used to find the nearest pixel to a given lat/lon. See `__init__` for more details.
     x : list or array_like
         1D integer array of pixel row IDs.
     y : list or array_like
@@ -460,7 +460,7 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
         sat_ecef_height : float, default=35785831.0
             Height of the satellite in meters above the specified ellipsoid. Defaults to the height of the GOES satellite.
         ellipse : str or list, default='WGS84'
-            A string representing a known ellipse to pyproj, or a list of [a, b] (semi-major
+            A string representing a known ellipse to pyproj, or iterable of [a, b] (semi-major
             and semi-minor axes) of the ellipse. Default is 'WGS84'.
         """
         if type(ellipse) == str:
@@ -469,7 +469,7 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
             rf = semiaxes_to_invflattening(ellipse[0], ellipse[1])
             ellipse_args = {'a': ellipse[0], 'rf': rf}
         else:
-            raise ValueError("Ellipse must be a string or list of [a, b].")
+            raise ValueError("Ellipse must be a string or iterable of [a, b].")
         self.ECEFxyz = proj4.Proj(proj='geocent', **ellipse_args)
         self.fixedgrid = proj4.Proj(proj='geos', lon_0=subsat_lon,
             lat_0=subsat_lat, h=sat_ecef_height, x_0=0.0, y_0=0.0,
@@ -1028,7 +1028,7 @@ def centers_to_edges(x):
     
     Returns
     -------
-    xedge : array
+    xedge : numpy.ndarray
         (N+1,) array of locations of the edges
 
     Notes

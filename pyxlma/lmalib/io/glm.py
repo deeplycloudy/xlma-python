@@ -7,8 +7,8 @@ def combine_glm_l2(filenames):
 
     Parameters
     ----------
-    filenames : list of str
-        List of filenames to read.
+    filenames : iterable of str
+        Collection of filenames to read.
     
     Returns
     -------

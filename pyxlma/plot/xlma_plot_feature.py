@@ -4,6 +4,7 @@ import xarray as xr
 import matplotlib.dates as md
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
+from pyxlma.plot.xlma_base_plot import BlankPlot
 
 
 def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,

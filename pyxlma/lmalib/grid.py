@@ -15,7 +15,8 @@ def discretize(x, x0, dx, int_type='uint64', bounds_check=True):
         coordinates of the points
     x0 : float
         minimum x value
-    dx : discretization interval
+    dx : float
+        discretization interval
 
     int_type : str, default='uint64'
         numpy dtype of x_id. 64 bit unsigned int by default, since 32 bit is limited to a 65536 pixel square grid.
