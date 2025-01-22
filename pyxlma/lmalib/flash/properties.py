@@ -300,7 +300,7 @@ def flash_stats(ds, area_func=None, volume_func=None):
     Returns
     -------
     ds : xarray.Dataset
-        The original dataset with the computed flash statistics added as variables.
+        LMA dataset with the computed flash statistics added as variables.
     """
     if area_func is None:
         area_func = lambda df: event_hull_area(df['event_x'].array,
@@ -456,7 +456,7 @@ def filter_flashes(ds, prune=True, **kwargs):
     Returns
     -------
     ds : xarray.Dataset
-        The original dataset with the flashes filtered by the given criteria.
+        LMA dataset with the flashes filtered by the given criteria.
     """
     # keep all points
     good = np.ones(ds.flash_id.shape, dtype=bool)

@@ -63,6 +63,13 @@ class GeographicSystem(CoordinateSystem):
     """Coordinate system defined using latitude, longitude, and altitude.
     An ellipsoid is used to define the shape of the earth. Latitude and longitude represent the
     location of a point on the ellipsoid, and altitude is the height above the ellipsoid.
+
+    Attributes
+    ----------
+    ERSlla : proj4.Proj
+        A pyproj Proj object representing the geographic coordinate system.
+    ERSxyz : proj4.Proj
+        A pyproj Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
     """
     def __init__(self, ellipse='WGS84', datum='WGS84',
                  r_equator=None, r_pole=None):
@@ -165,6 +172,27 @@ class GeographicSystem(CoordinateSystem):
 class MapProjection(CoordinateSystem):
     """Coordinate system defined using meters x, y, z in a specified map projection.
     Wraps proj4, and uses its projecion names. Converts location in any map projection to ECEF, and vice versa.
+
+    Attributes
+    ----------
+    ERSxyz : proj4.Proj
+        A pyproj Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
+    projection : proj4.Proj
+        A pyproj Proj object representing the map projection.
+    ctrLat : float
+        Latitude of the center of the map projection in decimal degrees North of the equator, if required for the projection.
+    ctrLon : float
+        Longitude of the center of the map projection in decimal degrees East of the Prime Meridian, if required for the projection.
+    ctrAlt : float
+        Altitude of the center of the map projection in meters.
+    geoCS : GeographicSystem
+        GeographicSystem object used to convert the map projection's center to ECEF.
+    cx : float
+        X coordinate of the map projection's center in meters.
+    cy : float
+        Y coordinate of the map projection's center in meters.
+    cz : float
+        Z coordinate of the map projection's center in meters.
     """
 
     def __init__(self, projection='eqc', ctrLat=None, ctrLon=None, ellipse='WGS84', datum='WGS84', **kwargs):
@@ -274,6 +302,23 @@ class MapProjection(CoordinateSystem):
 
 class PixelGrid(CoordinateSystem):
     """Coordinate system defined using arbitrary pixel coordinates in a 2D pixel array.
+
+    Attributes
+    ----------
+    geosys : GeographicSystem
+        GeographicSystem object used to convert pixel coordinates to ECEF.
+    lookup : object
+        Lookup object used to find the nearest pixel to a given lat/lon. See __init__ for more details.
+    x : list or array_like
+        1D integer array of pixel row IDs.
+    y : list or array_like
+        1D integer array of pixel column IDs.
+    lons : array_like
+        2D array of longitudes of pixel centers.
+    lats : array_like
+        2D array of latitudes of pixel centers.
+    alts : array_like
+        2D array of altitudes of pixel centers.
     """
     def __init__(self, lons, lats, lookup, x, y, alts=None, geosys=None):
         """Initialize a PixelGrid object.
@@ -388,6 +433,15 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
 
         The pixel locations are a 2D grid of scan angles (in radians) from the perspective of a 
         geostationary satellite above an arbitrary ellipsoid.
+
+        Attributes
+        ----------
+        ECEFxyz : proj4.Proj
+            A pyproj Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
+        fixedgrid : proj4.Proj
+            A pyproj Proj object representing the geostationary fixed grid coordinate system.
+        h : float
+            Height of the satellite in meters above the specified ellipsoid.
         """
     def __init__(self, subsat_lon=0.0, subsat_lat=0.0, sweep_axis='y',
                  sat_ecef_height=35785831.0,
@@ -484,9 +538,32 @@ class RadarCoordinateSystem(CoordinateSystem):
         
         Locations are defined using the latitude, longitude, and altitude of the radar and the azimuth and elevation angles of the radar beam.
 
-        Warning
-        -------
-        By default, an imaginary earth radius of 4/3 the actual earth radius is assumed to correct for atmospheric refraction.
+        Attributes
+        ----------
+        ctrLat : float
+            Latitude of the radar in decimal degrees North of the equator.
+        ctrLon : float
+            Longitude of the radar in decimal degrees East of the Prime Meridian.
+        ctrAlt : float
+            Altitude of the radar in meters above sea level.
+        datum : str
+            Datum name recognized by pyproj.
+        ellps : str
+            Ellipse name recognized by pyproj.
+        lla : proj4.Proj
+            A pyproj Proj object representing the geographic coordinate system.
+        xyz : proj4.Proj
+            A pyproj Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
+        Requator : float
+            Equatorial radius of the earth in meters.
+        Rpolar : float
+            Polar radius of the earth in meters.
+        flattening : float
+            Ellipsoid flattening parameter.
+        eccen : float
+            First eccentricity squared.
+        effectiveRadiusMultiplier : float
+            Multiplier to scale the earth's radius to account for the beam bending due to atmospheric refraction.
     """
 
     def __init__(self, ctrLat, ctrLon, ctrAlt, datum='WGS84', ellps='WGS84', effectiveRadiusMultiplier=4/3):
@@ -542,6 +619,11 @@ class RadarCoordinateSystem(CoordinateSystem):
             Ground range (great circle distance) in meters.
         z : float or array_like
             Height above the surface of the ellipsoid in meters.
+
+        Warning
+        -------
+        By default, an imaginary earth radius of 4/3 the actual earth radius is assumed to correct for atmospheric refraction.
+        This is a common assumption in radar meteorology, but may not be accurate in all cases.
         """
 
         #Double precison arithmetic is crucial to proper operation.
@@ -714,6 +796,19 @@ class RadarCoordinateSystem(CoordinateSystem):
 
 class TangentPlaneCartesianSystem(CoordinateSystem):
     """Coordinate system defined by a meters relative to plane tangent to the earth at a specified location.
+
+    Attributes
+    ----------
+    ctrLat : float
+        Latitude of the center of the local tangent plane in decimal degrees North of the equator.
+    ctrLon : float
+        Longitude of the center of the local tangent plane in decimal degrees East of the Prime Meridian.
+    ctrAlt : float
+        Altitude of the center of the local tangent plane in meters above the ellipsoid.
+    centerECEF : numpy.ndarray
+        ECEF X, Y, Z coordinates of the center of the local tangent plane.
+    TransformToLocal : numpy.ndarray
+        Rotation matrix to convert from ECEF to local tangent plane coordinates.
     """
 
     def __init__(self, ctrLat=0.0, ctrLon=0.0, ctrAlt=0.0):

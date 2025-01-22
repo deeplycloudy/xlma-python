@@ -23,7 +23,7 @@ def cluster_dbscan(X, Y, Z, T, min_points=1):
 
     Returns
     -------
-    labels : np.ndarray
+    labels : numpy.ndarray
         an unsigned 64 bit integer array of cluster labels.
         Noise points identified by DBSCAN are assigned the maximum value that can be represented by uint64, 
         i.e., np.iinfo(np.uint64).max or 18446744073709551615.

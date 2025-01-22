@@ -128,7 +128,7 @@ class OneToManyTraversal(object):
         
         Returns
         -------
-        all_counts : tuple of np.ndarray
+        all_counts : tuple of numpy.ndarray
             A tuple of arrays, where each array is the count of children at the
             corresponding level in the hierarchy.
         """
@@ -163,7 +163,7 @@ class OneToManyTraversal(object):
 
         Returns
         -------
-        last_replicated_p_ids : np.ndarray
+        last_replicated_p_ids : numpy.ndarray
             The replicated IDs of the ancestors (at the level of `entity_id_var`) replicated to the level of the child in the child->parent
             relationship specified to `parent_id_var` 
 

@@ -68,7 +68,7 @@ def geo_to_tps(event_longitude, event_latitude, event_altitude, tps_latitude, tp
     Parameters
     ----------
     event_longitude : xarray.Dataset
-        A pyxlma dataset containing latitude, longitude, and altitude of LMA VHF sources.
+        An LMA dataset containing latitude, longitude, and altitude of LMA VHF sources.
     tps_latitude : float
         Latitude of the tangent plane in degrees.
     tps_longitude : float
@@ -115,7 +115,7 @@ def ortho_proj_lma(event_longitude, event_latitude, event_altitude, radar_latitu
     Parameters
     ----------
     lma_file : xarray.Dataset
-        A pyxlma dataset containing latitude, longitude, and altitude of N number of LMA VHF sources.
+        An LMA dataset containing latitude, longitude, and altitude of N number of LMA VHF sources.
     radar_latitude : float
         Latitude of the radar in degrees.
     radar_longitude : float
@@ -274,7 +274,7 @@ def find_lma_points_near_rhi(lma_file, radar_latitude, radar_longitude, radar_al
     Parameters
     ----------
     lma_file : xarray.Dataset
-        A pyxlma dataset containing latitude, longitude, and altitude, and event_id of N number of LMA VHF sources.
+        An LMA dataset containing latitude, longitude, and altitude, and event_id of N number of LMA VHF sources.
     radar_latitude : float
         Latitude of the radar in degrees.
     radar_longitude : float
