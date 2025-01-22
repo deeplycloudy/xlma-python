@@ -96,11 +96,11 @@ There is no obvious choice here, either.
 ## Prior art
 
 - [`lmatools`](https://github.com/deeplycloudy/lmatools/)
-  - Includes readers for LMA and NLDN data (using older methods from 2010)
-  - Flash sorting and gridding
-  - Has code for all necessary coordinate transforms.
+    - Includes readers for LMA and NLDN data (using older methods from 2010)
+    - Flash sorting and gridding
+    - Has code for all necessary coordinate transforms.
 - [`brawl4d`](https://github.com/deeplycloudy/brawl4d/) A working version of the basic GUI functionality of xlma.
-  - Based on matplotlib; plots can be drag-repositioned. Slow for large numbers of data points.
-  - Includes charge analyis that auto-saves to disk
-  - At one point, could display radar data underneath LMA data
-  - Built around a data pipeline, with a pool of data at the start, subsetting, projection, and finally display.
+    - Based on matplotlib; plots can be drag-repositioned. Slow for large numbers of data points.
+    - Includes charge analyis that auto-saves to disk
+    - At one point, could display radar data underneath LMA data
+    - Built around a data pipeline, with a pool of data at the start, subsetting, projection, and finally display.
