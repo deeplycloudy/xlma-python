@@ -5,8 +5,8 @@ repo_url: https://github.com/deeplycloudy/xlma-python
 
 theme:
   name: material
-  logo: xlma_logo_big_big_ltg.svg
-  favicon: xlma_logo_big_big_ltg.svg
+  logo: xlma_logo.svg
+  favicon: xlma_logo.svg
   icon:
     repo: fontawesome/brands/github
   palette: 
@@ -54,6 +54,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Installation: install.md
   - API Reference:
       - coords:
         - reference/coords/index.md

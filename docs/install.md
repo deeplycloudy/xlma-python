@@ -1,7 +1,7 @@
 ## Installation
 Clone this repostiory install with pip.
 
-```
+```sh
 git clone https://github.com/deeplycloudy/xlma-python.git
 cd xlma-python
 pip install -e .
