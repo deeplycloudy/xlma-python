@@ -25,11 +25,14 @@ class CoordinateSystem(object):
     transforming that data to the final coordinate system using another coord system.
 
     Subclasses should maintain an attribute ERSxyz that can be used in transformations to/from an ECEF cartesian system, e.g.
-        
-        self.ERSxyz = proj4.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
-        self.ERSlla = proj4.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
-        projectedData = proj4.Transformer.from_crs(self.ERSlla.crs, self.ERSxyz.crs).transform(lon, lat, alt)
-
+    
+    ```py
+    import pyproj as proj4
+    self.ERSxyz = proj4.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+    self.ERSlla = proj4.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+    projectedData = proj4.Transformer.from_crs(self.ERSlla.crs, self.ERSxyz.crs).transform(lon, lat, alt)
+    ```
+    
     The ECEF system has its origin at the center of the earth, with the +Z toward the north pole, +X toward (lat=0, lon=0), and +Y right-handed orthogonal to +X, +Z
 
     Depends on [pyproj](https://github.com/pyproj4/pyproj) to handle the ugly details of
@@ -66,9 +69,9 @@ class GeographicSystem(CoordinateSystem):
 
     Attributes
     ----------
-    ERSlla : proj4.Proj
+    ERSlla : pyproj.Proj
         A Proj object representing the geographic coordinate system.
-    ERSxyz : proj4.Proj
+    ERSxyz : pyproj.Proj
         A Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
     """
     def __init__(self, ellipse='WGS84', datum='WGS84',
@@ -171,13 +174,13 @@ class GeographicSystem(CoordinateSystem):
 
 class MapProjection(CoordinateSystem):
     """Coordinate system defined using meters x, y, z in a specified map projection.
-    Wraps proj4, and uses its projecion names. Converts location in any map projection to ECEF, and vice versa.
+    Wraps pyproj, and uses its projecion names. Converts location in any map projection to ECEF, and vice versa.
 
     Attributes
     ----------
-    ERSxyz : proj4.Proj
+    ERSxyz : pyproj.Proj
         A Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
-    projection : proj4.Proj
+    projection : pyproj.Proj
         A Proj object representing the map projection.
     ctrLat : float
         Latitude of the center of the map projection in decimal degrees North of the equator, if required for the projection.
@@ -436,9 +439,9 @@ class GeostationaryFixedGridSystem(CoordinateSystem):
 
         Attributes
         ----------
-        ECEFxyz : proj4.Proj
+        ECEFxyz : pyproj.Proj
             A Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
-        fixedgrid : proj4.Proj
+        fixedgrid : pyproj.Proj
             A Proj object representing the geostationary fixed grid coordinate system.
         h : float
             Height of the satellite in meters above the specified ellipsoid.
@@ -550,9 +553,9 @@ class RadarCoordinateSystem(CoordinateSystem):
             Datum name recognized by pyproj.
         ellps : str
             Ellipse name recognized by pyproj.
-        lla : proj4.Proj
+        lla : pyproj.Proj
             A Proj object representing the geographic coordinate system.
-        xyz : proj4.Proj
+        xyz : pyproj.Proj
             A Proj object representing the Earth-Centered, Earth-Fixed (ECEF) cartesian coordinate system.
         Requator : float
             Equatorial radius of the earth in meters.
