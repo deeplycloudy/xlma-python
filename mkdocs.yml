@@ -1,0 +1,76 @@
+site_name: XLMA Python
+repo_name: deeplycloudy/xlma-python
+repo_url: https://github.com/deeplycloudy/xlma-python
+
+
+theme:
+  name: material
+  logo: xlma_logo.svg
+  favicon: xlma_logo.svg
+  icon:
+    repo: fontawesome/brands/github
+  palette: 
+
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      enable_inventory: true
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_source: false
+            docstring_section_style: table
+            annotations_path: source
+          import:
+          - https://matplotlib.org/stable/objects.inv
+          - https://numpy.org/doc/stable/objects.inv
+          - https://scitools.org.uk/cartopy/docs/latest/objects.inv
+          - https://ipywidgets.readthedocs.io/en/stable/objects.inv
+          - https://docs.xarray.dev/en/stable/objects.inv
+          - https://pyproj4.github.io/pyproj/stable/objects.inv
+          - https://pandas.pydata.org/pandas-docs/stable/objects.inv
+          - https://docs.python.org/3/objects.inv
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Installation: install.md
+  - API Reference:
+      - coords:
+        - reference/coords/index.md
+        - reference/coords/transforms.md
+      - xarray:
+        - reference/xarray/index.md
+      - lmalib:
+        - reference/lmalib/flash.md
+        - reference/lmalib/cf_netcdf.md
+        - reference/lmalib/read.md
+        - reference/lmalib/lma_intercept_rhi.md
+        - reference/lmalib/grid.md
+        - reference/lmalib/traversal.md
+      - plot:
+        - reference/plot/base_plot.md
+        - reference/plot/plot_feature.md
+        - reference/plot/interactive.md
+  - Contributing: contributing.md
+

@@ -1,0 +1,46 @@
+# Build xlma-python documentation.
+
+name: Build Documentation
+
+on: [push, pull_request]
+
+permissions:
+  id-token: write
+  contents: read
+  pages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.13
+    - name: Install environment with micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: docs/docs-env.yml
+        init-shell: bash
+    - name: Build with mkdocs
+      run: |
+        eval "$(micromamba shell hook --shell bash)"
+        micromamba activate pyxlma-docs
+        mkdocs build
+    - name: Upload static site artifact
+      id: upload
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./site/
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.upload.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Deploy artifact to GH Pages
+        uses: actions/deploy-pages@v4

@@ -4,15 +4,52 @@ import xarray as xr
 import matplotlib.dates as md
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
+from pyxlma.plot.xlma_base_plot import BlankPlot
 
 
 def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
            xlim, ylim, zlim, tlim, xchi, stationmin):
-    """
-    Generate a subset of x,y,z,t of sources based on maximum
-    reduced chi squared and given x,y,z,t bounds
+    """Generate a subset of x,y,z,t of sources based on maximum reduced chi squared and given x,y,z,t bounds
 
-    Returns: longitude, latitude, altitude, time and boolean arrays
+    Parameters
+    ----------
+    lon_data : array_like
+        longitudes of the sources
+    lat_data : array_like
+        latitudes of the sources
+    alt_data : array_like
+        altitudes of the sources
+    time_data : array_like
+        times of the sources
+    chi_data : array_like
+        reduced chi squared values of the sources
+    station_data : array_like
+        the number of stations receiving each source
+    xlim : iterable
+        [min, max] longitude bounds
+    ylim : iterable
+        [min, max] latitude bounds
+    zlim : iterable
+        [min, max] altitude bounds
+    tlim : iterable
+        [min, max] time bounds
+    xchi : float
+        maximum reduced chi squared value to be allowed
+    stationmin : int
+        minimum number of stations to be allowed
+    
+    Returns
+    -------
+    lon_data : numpy.ndarray
+        longitudes of the sources
+    lat_data : numpy.ndarray
+        latitudes of the sources
+    alt_data : numpy.ndarray
+        altitudes of the sources
+    time_data : numpy.ndarray
+        times of the sources
+    selection : numpy.ndarray
+        boolean array of the sources that meet the criteria
     """
     selection = ((alt_data>zlim[0])&(alt_data<zlim[1])&
                  (lon_data>xlim[0])&(lon_data<xlim[1])&
@@ -29,11 +66,24 @@ def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
 
 
 def color_by_time(time_array, tlim=None):
-    """
-    Generates colormap values for plotting scatter points by time in a
-    given time window
+    """Generates colormap values for plotting scatter points by time in a given time window
 
-    Returns: min, max values, array by time
+    Parameters
+    ----------
+    time_array : array_like
+        (N_points,) array of the times of the sources.
+        Array can be of datetime.datetime, numpy.datetime64, pandas.Timestamp, or float type
+    tlim : iterable
+        [min, max] time bounds
+    
+    Returns
+    -------
+    vmin : float
+        vmin of color data
+    vmax : float
+        vmax of color data
+    c : numpy.ndarray
+        data representing the color for each point. Can be passed to the 'c' kwarg of matplotlib scatter, plot, etc.
     """
     if tlim is None:
         tlim = np.array([np.atleast_1d(time_array.min())[0],
@@ -53,9 +103,37 @@ def color_by_time(time_array, tlim=None):
 
 def setup_hist(lon_data, lat_data, alt_data, time_data,
                xbins, ybins, zbins, tbins):
-    """
-    Create 2D VHF historgrams for combinations of x,y,z,t
-    in specified intervals
+    """Create 2D VHF historgrams for combinations of x,y,z,t in specified intervals.
+
+    Parameters
+    ----------
+    lon_data : array_like
+        longitudes of the points to histogram
+    lat_data : array_like
+        latitudes of the points to histogram
+    alt_data : array_like
+        altitudes of the points to histogram
+    time_data : array_like
+        times of the points to histogram
+    xbins : int
+        number of bins for the longitude histogram
+    ybins : int
+        number of bins for the latitude histogram
+    zbins : int
+        number of bins for the altitude histogram
+    tbins : int
+        number of bins for the time histogram
+    
+    Returns
+    -------
+    alt_lon : numpy.ndarray
+        2D histogram of altitude vs longitude
+    alt_lat : numpy.ndarray
+        2D histogram of altitude vs latitude
+    alt_time : numpy.ndarray
+        2D histogram of altitude vs time
+    lat_lon : numpy.ndarray
+        2D histogram of latitude vs longitude
     """
     alt_lon, _, _ = np.histogram2d(lon_data, alt_data, [xbins,zbins])
     alt_lat, _, _ = np.histogram2d(alt_data, lat_data, [zbins,ybins])
@@ -67,9 +145,52 @@ def setup_hist(lon_data, lat_data, alt_data, time_data,
 def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
                   plot_cmap=None, plot_s=None, plot_vmin=None, plot_vmax=None, plot_c=None, edge_color='face',
                   edge_width=0, add_to_histogram=True, marker='o', **kwargs):
-    """
-    Plot scatter points on an existing bk_plot object given x,y,z,t for each
-    and defined plotting colormaps and ranges
+    """Plot scatter points on an existing bk_plot object given x,y,z,t for each axis.
+    
+    Parameters
+    ----------
+    bk_plot : BlankPlot
+        The BlankPlot object to plot the data on
+    lon_data : array_like
+        longitudes of the points.
+    lat_data : array_like
+        latitudes of the points.
+    alt_data : array_like
+        altitudes of the points.
+    time_data : array_like
+        times of the points.
+    plot_cmap : str
+        colormap to use for the points
+    plot_s : float
+        size of the points
+    plot_vmin : float
+        minimum value for the colormap
+    plot_vmax : float
+        maximum value for the colormap
+    plot_c : array_like
+        color data for the points. If None, color by time
+    edge_color : str, default='face'
+        color of the edge of the points. Use 'face' to match the face color
+    edge_width : float, default=0
+        width of the edge of the points
+    add_to_histogram : bool, default=True
+        whether to add the points to the time_altitude histogram
+    marker : str, default='o'
+        marker style for the points
+    **kwargs
+        additional keyword arguments to pass to plt.scatter
+
+    Returns
+    -------
+    art_out : list
+        list of artists created by the scatter plot, in order of planview, time-height, lon cross section, lat cross section, 
+        and (if add_to_histogram is True) alt histogram
+    
+    Notes
+    -----
+    Before **kwargs was added to the function call, the plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, edge_color, edge_width, and marker arguments
+    were specified directly as keywords. They are still included for backwards compatibility,
+    however, using "cmap", "s", "vmin", "vmax", "c", "edgecolors", "linewidths", and "marker" in **kwargs is highly preferred.
     """
 
     # before **kwargs was added to the function call, the following arguments
@@ -117,16 +238,15 @@ def plot_points(bk_plot, lon_data, lat_data, alt_data, time_data,
 
 def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_height=18, fake_cg_height=1,
                         color_by='time', pos_color='red', neg_color='blue', **kwargs):
-    """
-    Plot points from a 2D lightning mapping neworks (ie, NLDN, ENTLN, etc)
+    """Plot points from a 2D lightning mapping neworks (ie, NLDN, ENTLN, etc)
 
     Parameters
     ----------
-    bk_plot : `pyxlma.plot.xlma_base_plot.BlankPlot`
+    bk_plot : BlankPlot
         A BlankPlot object to plot the data on
-    netw_data : `pandas.DataFrame` or `xarray.Dataset`
+    netw_data : pandas.DataFrame or xarray.Dataset
         data object with columns/variables 'longitude', 'latitude', 'type' (CG/IC), and 'datetime'
-    actual_height : `numpy.ndarray` or `pandas.Series` or `xarray.DataArray`
+    actual_height : array_like
         the hieghts of the events to be plotted (default None, fake_ic_height and fake_cg_height used)
     fake_ic_height : float
         the altitude to plot IC points (default 18 km)
@@ -193,23 +313,23 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
 
 
 def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True, poly_kwargs={}, vlines_kwargs={}):
-    """
-    Plot event-level data from a glmtools dataset on a pyxlma.plot.xlma_base_plot.BlankPlot object.
+    """Plot event-level data from a glmtools dataset on a pyxlma.plot.xlma_base_plot.BlankPlot object.
+
     Events that occupy the same pixel have their energies summed and plotted on the planview axis, event locations
     are plotted on the lat/lon/time axes with an altitude specified as fake_alt.
     Requires glmtools to be installed.
 
     Parameters
     ----------
-    glm : `xarray.Dataset`
-        A glmtools glm dataset to plot
-    bk_plot : `pyxlma.plot.xlma_base_plot.BlankPlot`
+    glm : xarray.Dataset
+        A glmtools dataset of GLM data to plot
+    bk_plot : BlankPlot
         A BlankPlot object to plot the data on
     fake_alt : list
         the axes relative coordinates to plot the vertical lines for GLM events in the cross section, default [0, 1],
         the full height of the axes.
     should_parallax_correct : bool
-        whether to correct the GLM event locations for parallax effect. See https://doi.org/10.1029/2019JD030874 for more information.
+        whether to correct the GLM event locations for parallax effect. See [Bruning et. al 2019, figure 5](https://doi.org/10.1029/2019JD030874).
     poly_kwargs : dict
         dictionary of additional keyword arguments to be passed to matplotlib Polygon
     vlines_kwargs : dict
@@ -287,14 +407,39 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
 def plot_3d_grid(bk_plot, xedges, yedges, zedges, tedges,
                 alt_lon, alt_lat, alt_time, lat_lon,
                 alt_data, plot_cmap=None, **kwargs):
-    """
-    Plot gridded fields on an existing bk_plot given x,y,z,t grids and
-    respective grid edges
+    """Plot gridded fields on an existing bk_plot given x,y,z,t grids and respective grid edges.
 
-    In previous versions, 'plot_cmap' was required positional argument, this now defaults to None/matplotlib default unless overridden
-    Before the addition of **kwargs, 'vmin' was hardcoded to 0. This allows the user to specify a vmin in **kwargs, but maintain
-    backwards compatibility with assuming a vmin of 0 if no vmin is provided 
+    Parameters
+    ----------
+    bk_plot : BlankPlot
+        The BlankPlot object to plot the data on
+    xedges : array_like
+        The edges of the bins of the histogram along the x (or longitude) dimension
+    yedges : array_like
+        The edges of the bins of the histogram along the y (or latitude) dimension
+    zedges : array_like
+        The edges of the bins of the histogram along the z (or altitude) dimension
+    tedges : array_like
+        The edges of the bins of the histogram along the time dimension
+    alt_lon : array_like
+        2D histogram of altitude vs longitude
+    alt_lat : array_like
+        2D histogram of altitude vs latitude
+    alt_time : array_like
+        2D histogram of altitude vs time
+    lat_lon : array_like
+        2D histogram of latitude vs longitude
+    alt_data : array_like
+        1D histogram of source altitudes
+    plot_cmap : str
+        colormap to use for the points
+    **kwargs
+        additional keyword arguments to pass to pcolormesh
 
+    Notes
+    -----
+    Before **kwargs was added to the function call, the plot_cmap was specified directly as a keyword. This is still included
+    for backwards compatibility, however, using "cmap" in **kwargs is highly preferred.
     """
 
     plot_cmap = kwargs.pop('cmap', plot_cmap)

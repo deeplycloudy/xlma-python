@@ -1,32 +1,13 @@
 import collections, itertools
 import numpy as np
 
-""" Code from glmtools, where there are also unit tests for this class.
-    TODO: port to work as an xarray accessor? And move unit tests here. Adapt
-        to automatically use cf-tree metadata.
-"""
+# """ Code from glmtools, where there are also unit tests for this class.
+#     TODO: port to work as an xarray accessor? And move unit tests here. Adapt
+#         to automatically use cf-tree metadata.
+# """
 
 class OneToManyTraversal(object):
-    def __init__(self, dataset, entity_id_vars, parent_id_vars):
-        """
-        dataset is an xarray.Dataset
-
-        entity_id_vars is a list of variable names giving indices that are unique
-        along the dimension of that variable. The names should be given in
-        order from the parent to children, e.g.
-        ('child_id', 'grandchild_id', 'greatgrandchild_id')
-        which corresponds to
-        ('child_dim', 'grandchild_dim', 'greatgrandchild_dim')
-
-        parent_id_vars is a list of variable names giving the child to parent
-        relationships, and is along the dimension of the child. The names
-        should be given in order from parent to children, and be one less in
-        length than entitiy_id_vars, e.g.
-        ('parent_id_of_grandchild', 'parent_id_of_greatgrandchild')
-        which corresponds to
-        ('grandchild_dim', 'greatgrandchild_dim')
-
-
+    """A class to allow traversal of a dataset where data variables have a one-to-many relationships.
         This object creates groupbys stored by dictionaries that make it
         convenient to look up the groupby given either the p
 
@@ -53,6 +34,19 @@ class OneToManyTraversal(object):
         of virtual dimension that links set membership instead of coordinates.
         A future NetCDF spec could formalize this relationship structure
         to encourage the same library-level functionality as this class.
+    """
+    def __init__(self, dataset, entity_id_vars, parent_id_vars):
+        """Initialize a OneToManyTraversal object.
+
+        Parameters
+        ----------
+        dataset : xarray.Dataset
+            The dataset to be traversed.
+        entity_id_vars : iterable[str]
+            The names of the N variables to be traversed, in order from grandparent -> parent -> child -> grandchild -> ...
+            Variables must be unique along the dimension of the variable.
+        parent_id_vars : iterable[str]
+            The names of the N-1 variables that link the entities in entity_id_vars, in order from (grandparent_id_of_parent) -> (parent_id_of_child) -> (child_id_of_grandchild) -> ...
 
         """
         n_entities = len(entity_id_vars)
@@ -107,7 +101,7 @@ class OneToManyTraversal(object):
         yield from zip(self.entity_id_vars[::-1], self.parent_id_vars[::-1])
 
     def count_children(self, entity_id_var, child_entity_id_var=None):
-        """ Count the children of entity_id_var.
+        """Count the children of entity_id_var.
 
         Optionally, accumulate counts of children down to and including
         the level of child_entity_id_var. These are the counts from parent
@@ -116,14 +110,27 @@ class OneToManyTraversal(object):
         If replicate_parent_ids has been used to create 'bottom_parent_top_id',
         where the top and bottom are separated by a few levels, it is possible
         to get an aggregate count (matching the top parent dimension) of the
-        children many generations below by doing:
-        > grouper = dataset.groupby('bottom_parent_top_id').groups
-        > count = [len(grouper[eid]) if (eid in grouper) else 0
+        children many generations below:
+        ```py
+            grouper = dataset.groupby('bottom_parent_top_id').groups
+            count = [len(grouper[eid]) if (eid in grouper) else 0
                    for eid in d['top_id'].data]
-        > assert_equal(storm_child_trig_count, count)
-
-        Returns a list of counts of the children of entity_id_var and
-        (optionally) its children.
+            assert_equal(storm_child_trig_count, count)
+        ```
+        
+        Parameters
+        ----------
+        entity_id_var : str
+            The name of the variable to count children of.
+        child_entity_id_var : str, optional
+            The name of the lowest variable in the hierarchy to count children of.
+            If None, only the immediate children are counted.
+        
+        Returns
+        -------
+        all_counts : tuple of numpy.ndarray
+            A tuple of arrays, where each array is the count of children at the
+            corresponding level in the hierarchy.
         """
         count_next = False
         all_counts = []
@@ -142,30 +149,38 @@ class OneToManyTraversal(object):
         return all_counts
 
     def replicate_parent_ids(self, entity_id_var, parent_id_var):
-        """ Ascend from the level of parent_id_var to entity_id_var,
-            and replicate the IDs in entity_id_var, one each for the
-            number of rows in the parent_id_var dimension.
+        """Replicate the IDs of the ancestors at the level of a child entity.
 
-            entity_id_var is one of the variables originally
-            given by entity_id_vars upon class initialization.
+        If given a mapping of child->parent, this function can find the grandparents, great-grandparents, etc.
 
-            parent_id_var is one of the variables originally
-            given by parent_id_vars upon class initialization.
+        Parameters
+        ----------
+        entity_id_var : str
+            The name of the ancestor entity to find. Must be a variable originally specificied to `entity_id_vars` the class initialization.
+        parent_id_var : str
+            The name of initial the child->parent relationship to start ascending through the heirarchy with.
+            Must be a variable originally specified to the `parent_id_vars` and must be lower than the value specified to `entity_id_var`
 
-            This function is not strictly needed for queries up one level
-            (where parent_id_var can be used directly), but is needed to ascend
-            the hierarchy by two or more levels.
+        Returns
+        -------
+        last_replicated_p_ids : numpy.ndarray
+            The replicated IDs of the ancestors (at the level of `entity_id_var`) replicated to the level of the child in the child->parent
+            relationship specified to `parent_id_var` 
 
-            Once the parent entity_ids have been replicated, they can be used
-            with xarray's indexing functions to replicate any other variable
-            along that parent entity's dimension.
+        Notes
+        -----
+        This function is not strictly needed for queries up one level
+        (where parent_id_var can be used directly), but is needed to ascend
+        the hierarchy by two or more levels.
 
-            returns replicated_parent_ids
-
-            TODO: args should really be:
-            replicate_to_dim
-            replicate_var -> replicate_from_dim
+        Once the parent entity_ids have been replicated, they can be used
+        with xarray's indexing functions to replicate any other variable
+        along that parent entity's dimension.
         """
+        # TODO: args should really be:
+        # replicate_to_dim
+        # replicate_var -> replicate_from_dim
+
         # Work from bottom up.
         # First, wait until the parent_id_var is reached
         # then use the groupby corresponding to the next level up
@@ -201,8 +216,23 @@ class OneToManyTraversal(object):
             # last_e_var, last_p_var = e_var, p_var
 
     def reduce_to_entities(self, entity_id_var, entity_ids):
-        """ Reduce the dataset to the children and parents of entity_id_var
-        given entity_ids that are within entity_id_var
+        """Reduce the dataset to the ancestors and descendents of the given entity_ids that are within the given entity_id_var.
+
+        Finds all ancestors and descendents of the specified IDs on the specified variable, and returns a filtered dataset containing only the requested
+        entity IDs and their ancestors and children.
+
+        Parameters
+        ----------
+        entity_id_var : str
+            The variable to find the ancestors and descendants of.
+
+        entity_ids : array_like
+            The IDs to filter the dataset by.
+        
+        Returns
+        -------
+        dataset : xarray.Dataset
+            original dataset filtered to the requested entity_ids along the entity_id_var and all ancestors and descendants.
         """
         entity_ids = np.asarray(entity_ids)
 

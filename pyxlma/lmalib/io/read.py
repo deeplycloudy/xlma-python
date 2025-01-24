@@ -5,6 +5,11 @@ import gzip
 import datetime as dt
 
 class open_gzip_or_dat:
+    """Helper class open a file with gzip if necessary or as binary if already decompressed.
+
+    Use as a context manager in the same way as `with open(filename) as f:`. If the filename ends with
+    '.gz', the file will be decompressed with gzip. Otherwise, the file will be opened as binary.
+    """
     def __init__(self, filename):
         self.filename = filename
 
@@ -19,7 +24,22 @@ class open_gzip_or_dat:
         self.file.close()
 
 def mask_to_int(mask):
-    """ Convert object array of mask strings to integers"""
+    """Convert object array of mask strings to integers.
+    
+    Parameters
+    ----------
+    mask : array_like
+        An array of strings representing the station mask. Each string should be a hexidecimal representing a binary station mask.
+
+    Returns
+    -------
+    mask_int : ndarray
+        An array of integers representing the station mask. Each integer is the binary representation of the station mask.
+
+    Notes
+    -----
+    Information on the station mask can be found in the [LMA Hardware section of lmaworkshop](https://github.com/deeplycloudy/lmaworkshop/blob/master/LEE-2023/LMAsourcefiles.ipynb)
+    """
     if len(mask.shape) == 0:
         mask_int = np.asarray([], dtype=int)
     else:
@@ -32,9 +52,17 @@ def mask_to_int(mask):
     return mask_int
 
 def combine_datasets(lma_data):
-    """ lma_data is a list of xarray datasets of the type returned by
-        pyxlma.lmalib.io.cf_netcdf.new_dataset or
-        pyxlma.lmalib.io.read.to_dataset
+    """Combine a list of LMA datasets.
+
+    Parameters
+    ----------
+    lma_data : iterable[xarray.Dataset]
+        Collection of LMA datasets of the type returned by pyxlma.lmalib.io.cf_netcdf.new_dataset or pyxlma.lmalib.io.read.to_dataset
+    
+    Returns
+    -------
+    ds : xarray.Dataset
+        A combined dataset of the LMA data
     """
     # Get a list of all the global attributes from each dataset
     attrs = [d.attrs for d in lma_data]
@@ -94,8 +122,25 @@ def combine_datasets(lma_data):
     return ds
 
 def dataset(filenames, sort_time=True):
-    """ Create an xarray dataset of the type returned by
-        pyxlma.lmalib.io.cf_netcdf.new_dataset for each filename in filenames
+    """Read LMA .dat or .dat.gz file(s) into an xarray dataset.
+
+    The dataset returned is the same type as is returned by
+    pyxlma.lmalib.io.cf_netcdf.new_dataset for each filename in filenames.
+
+    Parameters
+    ----------
+    filenames : str or iterable[str]
+        The file or files to read in
+    sort_time : bool, default=True
+        Whether to sort the VHF events by time after reading in the data.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        An xarray dataset of the LMA data.
+    starttime : datetime
+        The start of the period of record of the LMA data.
+
     """
     if type(filenames) == str:
         filenames = [filenames]
@@ -140,7 +185,7 @@ def dataset(filenames, sort_time=True):
     return ds, starttime
 
 def to_dataset(lma_file, event_id_start=0):
-    """ lma_file: an instance of an lmafile object
+    """lma_file: an instance of an lmafile object
 
     returns an xarray dataset of the type returned by
         pyxlma.lmalib.io.cf_netcdf.new_dataset
@@ -222,32 +267,33 @@ def to_dataset(lma_file, event_id_start=0):
 
 def nldn(filenames):
     """
-    Read Viasala NLDN data
+    Read [Viasala NLDN](https://www.vaisala.com/en/products/national-lightning-detection-network-nldn) data
      
     Reads in one or multiple NLDN files and and returns a pandas dataframe with appropriate column names
 
 
     Parameters
     ----------
-    filenames : str or list of str
+    filenames : str or iterable[str]
         The file or files to read in
     
     
     Returns
     -------
-    full_df : `pandas.DataFrame`
+    full_df : pandas.DataFrame
         A pandas dataframe of entln data, with columns:
-        'latitude' - the latitude of the event
-        'longitude' - the longitude of the event
-        'peak_current_kA' - the peak current in kA
-        'multiplicity' - the number of strokes in the event
-        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
-        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
-        'ellipseangle' - the angle of the 50% confidence ellipse
-        'chi2' - the reduced chi-squared value of the event
-        'num_stations' - the number of stations contributing to the event
-        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
-        'datetime' - the time of the event
+
+        - 'latitude' - the latitude of the event
+        - 'longitude' - the longitude of the event
+        - 'peak_current_kA' - the peak current in kA
+        - 'multiplicity' - the number of strokes in the event
+        - 'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        - 'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+        - 'ellipseangle' - the angle of the 50% confidence ellipse
+        - 'chi2' - the reduced chi-squared value of the event
+        - 'num_stations' - the number of stations contributing to the event
+        - 'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        - 'datetime' - the time of the event
 
         
     Notes
@@ -280,31 +326,32 @@ def nldn(filenames):
 
 def entln(filenames):
     """
-    Read Earth Networks Total Lightning Network data
+    Read [aem/Earth Networks Total Lightning Network](https://aem.eco/product/earth-networks-total-lightning-network/) data
      
     Reads in one or multiple ENTLN files and and returns a pandas dataframe with appropriate column names
 
 
     Parameters
     ----------
-    filenames : str or list of str
+    filenames : str or iterable[str]
         The file or files to read in
     
     
     Returns
     -------
-    full_df : `pandas.DataFrame`
+    full_df : pandas.DataFrame
         A pandas dataframe of entln data, with columns:
-        'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
-        'datetime' - the time of the event
-        'latitude' - the latitude of the event
-        'longitude' - the longitude of the event
-        'peak_current_kA' - the peak current in kA
-        'icheight' - the height of the IC event in meters
-        'num_stations' - the number of stations contributing to the event
-        'ellipseangle' - the angle of the 50% confidence ellipse
-        'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
-        'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
+        
+        - 'type' - 'IC' or 'CG' for intracloud or cloud-to-ground
+        - 'datetime' - the time of the event
+        - 'latitude' - the latitude of the event
+        - 'longitude' - the longitude of the event
+        - 'peak_current_kA' - the peak current in kA
+        - 'icheight' - the height of the IC event in meters
+        - 'num_stations' - the number of stations contributing to the event
+        - 'ellipseangle' - the angle of the 50% confidence ellipse
+        - 'semimajor' - the semimajor axis length in km of the 50% confidence ellipse
+        - 'semiminor' - the semiminor axis length in km of the 50% confidence ellipse
 
     Notes
     -----
@@ -331,20 +378,28 @@ def entln(filenames):
 
     
 class lmafile(object):
+    """Class representing an lmafile object for data being read in. To read in the data, use the `to_dataset` method."""
     def __init__(self,filename):
-        """
-        Pull the basic metadata from a '.dat.gz' LMA file
+        """Pull the basic metadata from a '.dat.gz' LMA file
 
-        startday : the date (datetime format)
-        station_info_start : the line number (int) where the station information starts
-        station_data_start : the line number (int) where the summarized station data starts
-        station_data_end : the line number (int) end of the summarized station data
-        maskorder : the order of stations in the station mask (str)
-        names : column header names
-        data_starts : the line number (int) where the VHF source data starts
-
-        overview : summarized station data from file header (DataFrame, assumes fixed-width format)
-        stations : station information from file header (DataFrame, assumes fixed-width format)
+        Attributes
+        ----------
+        startday : datetime
+            the date of the start of the period of record.
+        station_info_start : int
+            the line number in the decompressed file where the station information starts
+        station_data_start : int
+            the line number in the decompressed file where the summarized station data starts
+        station_data_end : int
+            the line number in the decompressed file of the end of the summarized station data
+        maskorder : str
+            the order of stations in the station mask
+        names : list
+            column header names
+        data_starts : int
+            the line number in the decompressed file where the VHF source data starts
+        stations : pd.Dataframe
+            station information from file header (DataFrame, assumes fixed-width format)
 
         """
         self.file = filename

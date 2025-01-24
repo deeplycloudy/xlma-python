@@ -1,20 +1,20 @@
-"""
-To automatically compare a file with the specification in this file,
+# """
+# To automatically compare a file with the specification in this file,
 
-import xarray as xr
-from pyxlma.lmalib.io.cf_netcdf import new_dataset
-ds_test = xr.open_dataset('test_LMA_dataset.nc', decode_cf=False)
-ds_valid = new_dataset(flashes=ds_orig.dims['number_of_flashes'], events=ds_orig.dims['number_of_events'])
-try:
-    xr.testing.assert_identical(ds_valid, ds_test)
-except AssertionError as e:
-    print("Left dataset is the validation dataset
-    print("Right Dataset is the test dataset provided")
-    report=str(e)
-    print(report)
-    with open('report.txt', 'w') as f:
-        f.write(report)
-"""
+# import xarray as xr
+# from pyxlma.lmalib.io.cf_netcdf import new_dataset
+# ds_test = xr.open_dataset('test_LMA_dataset.nc', decode_cf=False)
+# ds_valid = new_dataset(flashes=ds_orig.dims['number_of_flashes'], events=ds_orig.dims['number_of_events'])
+# try:
+#     xr.testing.assert_identical(ds_valid, ds_test)
+# except AssertionError as e:
+#     print("Left dataset is the validation dataset
+#     print("Right Dataset is the test dataset provided")
+#     report=str(e)
+#     print(report)
+#     with open('report.txt', 'w') as f:
+#         f.write(report)
+# """
 
 import copy
 
@@ -26,6 +26,13 @@ import xarray as xr
 # http://cfconventions.org,
 # https://www.unidata.ucar.edu/software/netcdf/conventions.html
 def new_template_dataset():
+ """Create a new, empty xarray dataset for LMA data.
+
+ Returns
+ -------
+ __template_dataset : dict
+     A dictionary that can be used to create a new xarray dataset for LMA data.
+ """
  __template_dataset = {'coords': {},
  'attrs': {'title': 'Lightning Mapping Array dataset, L1b events and L2 flashes',
   'production_date': '1970-01-01 00:00:00 +00:00',
@@ -340,9 +347,9 @@ def new_template_dataset():
  return __template_dataset
 
 def validate_events(ds, dim='number_of_events', check_events=True, check_flashes=True):
-    """ Take an xarray dataset ds and check to ensure all expected variables
-        and attributes exist. Print a report of anything that doesn't match.
-    """
+    # """ Take an xarray dataset ds and check to ensure all expected variables
+    #     and attributes exist. Print a report of anything that doesn't match.
+    # """
     # Will need to make dimensions and data equal for this to work. Subset to
     # zero-length dimensions? I think that drops the dim. So subset to single length and then assing a value of zero to each variable?
     # http://xarray.pydata.org/en/stable/generated/xarray.testing.assert_identical.html#xarray.testing.assert_identical
@@ -356,29 +363,41 @@ def validate_events(ds, dim='number_of_events', check_events=True, check_flashes
 def new_dataset(events=None, flashes=None, stations=None, **kwargs):
     """ Create a new, empty xarray dataset for LMA data.
 
-    Keyword arguments:
-      events (int, optional): number of events
-      flashes (int, optional): number of flashes
-      stations (int, optional): number of stations
-      production_date: a time string corresponding to the CF standards,
-        e.g., '2020-04-26 21:08:42 +00:00'
-      production_site (string): Information about the production site. Useful
+    Parameters
+    ----------
+    events : int, optional
+        number of events
+    flashes : int, optional
+        number of flashes
+    stations : int, optional
+        number of stations
+    production_date : str, optional
+        a time string corresponding to the CF standards, '%Y-%m-%d %H:%M:%S %z' format. e.g., '2020-04-26 21:08:42 +00:00'
+    production_site : str
+        Information about the production site. Useful
         if an institution has more than one physical location.
-      event_algorithm_name (string): The name of the algorithm used to locate
-        station-level triggers as events. For LMA data, usually lma_analysis.
-        May also be the command issued to process the data, with any relevant
-        information regarding data quality thresholds also reported in
+    event_algorithm_name : str
+        The name of the algorithm used to locate station-level triggers as events. For LMA data, usually lma_analysis.
+        May also be the command issued to process the data, with any relevant information regarding data quality thresholds also reported in
         data variables reserved for that purpose.
-      event_algorithm_version (string): The event algorithm version
-      flash_algorithm_name (string): The name of the algorithm used to cluster
-        events to flashes. May also be the command issued to process the data,
-        with any relevant information regarding space-time separation thresholds
-        also reported in data variables reserved for that purpose.
-      flash_algorithm_version (string): The flash algorithm version
-      institution, comment, history, references, source: see
+    event_algorithm_version : str
+        The event algorithm version
+    flash_algorithm_name : str
+        The name of the algorithm used to cluster events to flashes. May also be the command issued to process the data,
+        with any relevant information regarding space-time separation thresholds also reported in data variables reserved for that purpose.
+    flash_algorithm_version : str
+        The flash algorithm version institution, comment, history, references, source: see
         http://cfconventions.org/Data/cf-conventions/cf-conventions-1.8/cf-conventions.html#description-of-file-contents
-     Any other keyword arguments are also added as a global attribute.
+    **kwargs
+        Additional attributes to add to the dataset.
 
+    Returns
+    -------
+    ds : xarray.Dataset
+        An empty dataset with the appropriate dimensions and attributes.
+
+    Notes
+    -----
     If event, flash, or station information are not known, passing None
     (default) will drop variables associated with that dimension.
     """
@@ -458,8 +477,14 @@ def new_dataset(events=None, flashes=None, stations=None, **kwargs):
     return xr.Dataset.from_dict(ds_dict)
 
 def compare_attributes(ds):
-    """ Compare the attributes of all data variables in ds to the CF spec
-        and print a report of any differences.
+    """ Compare the attributes of all data variables on a dataset to the CF spec.
+
+    Prints a report of any differences.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The dataset to compare.
     """
     dst = __template_dataset['data_vars']
     dsd = ds.to_dict()['data_vars']

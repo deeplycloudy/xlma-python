@@ -27,18 +27,36 @@
 # flash_init_*
 
 
-from lmatools.io.LMAarrayFile import LMAdataFile
 import datetime as dt
 import numpy as np
 
 class LMAdata(object):
-
-    def __init__(self, filename, **kwargs):
-        self.lma = LMAdataFile(filename, mask_length=kwargs['mask_length'])
+    """Helper class to read LMA data using lmatools LMAdataFile.
+    
+    Warning
+    -------
+    This class is provided for backwards compatibility with lmatools.
+    It is highly encouraged to use the functions in pyxlma.lmalib.io.read in new code.
+    """
+    def __init__(self, filename, mask_length, **kwargs):
+        """Initialize LMAdata object.
+        
+        Parameters
+        ----------
+        filename : str
+            Path to LMA data file.
+        mask_length : int
+            Length of the hexadecimal station mask in the LMA data file.
+        **kwargs
+            Filter parameters to use when reading LMA data. Valid keys are 'stn', 'chi2', and 'alt'.
+        """
+        from lmatools.io.LMAarrayFile import LMAdataFile
+        self.lma = LMAdataFile(filename, mask_length=mask_length)
         self.get_date()
         self.limit_data(**kwargs)
 
     def get_date(self):
+        """Get date from LMA data file."""
         for line in self.lma.header:
             if line[0:10] == 'Data start':
                 datestr = line[17:25]
@@ -60,6 +78,7 @@ class LMAdata(object):
         self.day = dy
 
     def limit_data(self, **kwargs):
+        """Limit LMA data based on filter parameters."""
         good1 = (self.lma.stations >= kwargs['stn']) & \
             (self.lma.chi2 <= kwargs['chi2']) & (self.lma.alt < kwargs['alt'])
         good2 = np.logical_and(

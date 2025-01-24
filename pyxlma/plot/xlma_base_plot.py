@@ -35,7 +35,15 @@ COORD_LAT = [0.8, 0.1, 0.13, 0.5]
 COORD_HIST = [0.8, 0.65, 0.13, 0.1]
 
 class FractionalSecondFormatter(Formatter):
+    """Helper class to format fractional seconds in time labels on BlankPlot."""
     def __init__(self, axis):
+        """Create a FractionalSecondFormatter object.
+        
+        Parameters
+        ----------
+        axis : matplotlib.axis.Axis
+            The axis to format.
+        """
         self._axis = axis
 
     def __call__(self, x, pos=None):
@@ -86,18 +94,57 @@ class FractionalSecondFormatter(Formatter):
 
 
 class BlankPlot(object):
-    """
-    Generate a matching plot setup with no data
+    """Generate LMA plot setup with no data.
 
-    Requires:
-    stime = starting time
-    xlim, ylim = bounds of the domain
-    title = title string
-    tlim = list of start and end times
+    Generates a matplotlib figure in the style of the base plot from XLMA (plan view, cross sections, alt histogram, alt-timeseries axes).
 
-    Will include map information if bkgmap==True
+    Attributes
+    ----------
+    zlim : iterable[float]
+        Altitude limits [min, max]
+    tlim : iterable[datetime]
+        Time limits [start, end]
+    ylim : iterable[float]
+        Latitude limits [min, max]
+    xlim : iterable[float]
+        Longitude limits [min, max]
+    bkgmap : bool
+        Whether ax_plan is a GeoAxes or standard matplotlib axis.
+    ax_plan : matplotlib.axes.Axes or cartopy.mpl.geoaxes.GeoAxes
+        Plan view axis
+    ax_th : matplotlib.axes.Axes
+        Time-altitude axis
+    ax_lon : matplotlib.axes.Axes
+        Longitude-altitude axis
+    ax_lat : matplotlib.axes.Axes
+        Latitude-altitude axis
+    ax_hist : matplotlib.axes.Axes
+        Altitude histogram axis
+    fig : matplotlib.figure.Figure
+        The figure object    
     """
     def __init__(self, stime, bkgmap=True, **kwargs):
+        """Create a BlankPlot object.
+
+        Parameters
+        ----------
+        stime : datetime
+            Starting time for the plot
+        bkgmap : bool, default=True
+            Whether to include background map projection and add country/state borders.
+            If False, the axis will be a standard matplotlib axis. If True, the axis will be a cartopy GeoAxes with the PlateCarree projection.
+            If MetPy is installed and importable, the plot will include US county borders.
+        zlim : iterable[float]
+            Altitude limits [min, max]
+        tlim : iterable[datetime]
+            Time limits [start, end]
+        ylim : iterable[float]
+            Latitude limits [min, max]
+        xlim : iterable[float]
+            Longitude limits [min, max]
+        title : str
+            The title to use for the plot.
+        """
         self.zlim = kwargs['zlim']
         self.tlim = kwargs['tlim']
         self.ylim = kwargs['ylim']
@@ -110,6 +157,10 @@ class BlankPlot(object):
         self.plot(**kwargs)
 
     def set_ax_plan_labels(self):
+        """Sets the labels on the planview axis to match the cross section axes.
+
+        If the background map is enabled, ensure the plan view axis has the same extent as the cross section axes.
+        """
         self.ax_plan.set_xticks(self.ax_lon.get_xticks())
         self.ax_plan.set_yticks(self.ax_lat.get_yticks())
         if self.bkgmap==True:
@@ -117,6 +168,7 @@ class BlankPlot(object):
                                      self.ylim[0], self.ylim[1]])
 
     def plot(self, **kwargs):
+        """Draw the Blank Plot"""
         self.fig = plt.figure(figsize=(8.5, 11))
         self.ax_th = self.fig.add_axes(COORD_TH)
         if self.bkgmap == True:
@@ -206,10 +258,21 @@ class BlankPlot(object):
         self.ax_plan.set_aspect('auto')
 
 def subplot_labels(plot):
-    """
-    Place letters on each subplot panel.
+    """Place letters on each panel of a BlankPlot.
 
-    Returns a list of matplotlib text artists
+    Parameters
+    ----------
+    plot : BlankPlot
+        The BlankPlot object to label.
+    
+    Returns
+    -------
+    list of matplotlib.text.Text
+        Handles of the text objects for each label.
+    
+    Notes
+    -----
+    This function is useful for creating publication-quality figures with multiple panels which require labeling.
     """
     a = plt.text(0.05, 0.8, '(a)', fontsize='x-large', weight='bold',
                      horizontalalignment='center', verticalalignment='center',
@@ -231,12 +294,37 @@ def subplot_labels(plot):
 
 def inset_view(plot, lon_data, lat_data, xlim, ylim, xdiv, ydiv,
                buffer=0.5, inset_size=0.15, plot_cmap = 'magma', bkgmap = True):
-    """
-    Overlay an inset panel of size 'inset_size' showing a plan-view histogram
-    of sources at xdiv, ydiv intervals and outlining a box over xlim and ylim
-    with buffer of 'buffer' lat/lon degrees in the image.
+    """Overlay an inset panel showing a plan-view 2D histogram of sources.
 
-    Add background map features if 'bkgmap' == True
+    Parameters
+    ----------
+    plot : BlankPlot
+        The BlankPlot object to add the inset to.
+    lon_data : array_like
+        longitudes of sources to be added to the histogram
+    lat_data : array_like
+        latitudes of sources to be added to the histogram
+    xlim : iterable[float]
+        x (or longitude) limits [min, max]
+    ylim : iterable[float]
+        y (or latitude) limits [min, max]
+    xdiv : float
+        x (or longitude) bin width for histogram
+    ydiv : float
+        y (or latitude) bin width for histogram
+    buffer : float, default=0.5
+        x/y buffer to be added/subtracted from xlim/ylim in the histogram bin edges
+    inset_size : float, default=0.15
+        Size of the inset panel as a fraction of the figure size
+    plot_cmap : str, default='magma'
+        Colormap to use for the histogram
+    bkgmap : bool, default=True
+        Whether to include background map projection and add country/state borders.
+
+    Returns
+    -------
+    inset : cartopy.mpl.geoaxes.GeoAxes or matplotlib.axes.Axes
+        The axis object containing the inset histogram.
     """
     inset = plot.fig.add_axes([0.02, 0.01, 0.02+inset_size,
                               0.01+inset_size],projection=ccrs.PlateCarree())
