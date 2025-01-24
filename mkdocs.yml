@@ -72,4 +72,5 @@ nav:
         - reference/plot/base_plot.md
         - reference/plot/plot_feature.md
         - reference/plot/interactive.md
+  - Contributing: contributing.md
 

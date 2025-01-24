@@ -1,11 +1,12 @@
 ## Installation
-Clone this repostiory install with pip.
 
+To install the latest "bleeding edge" commit of xlma-python, you can pip install the git repo directly:
 ```sh
-git clone https://github.com/deeplycloudy/xlma-python.git
-cd xlma-python
-pip install -e .
+pip install git+https://github.com/deeplycloudy/xlma-python`
 ```
+Note that this does **NOT** automatically update in a conda environment when running `conda update --all`, you must fully reinstall the library to obtain new changes.
+
+For a development install see [contributing](../contributing/).
 
 ## Dependencies
 Required:
