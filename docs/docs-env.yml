@@ -1,0 +1,19 @@
+name: pyxlma-docs
+channels:
+- conda-forge
+dependencies:
+- metpy
+- mkdocs-material
+- mkdocstrings-python
+- netcdf4
+- numpy
+- pandas
+- pip
+- pyproj
+- scikit-learn
+- scipy
+- xarray
+- pip:
+  - git+https://github.com/deeplycloudy/lmatools
+  - git+https://github.com/deeplycloudy/glmtools@energy_threshold_util
+  - -e ../
