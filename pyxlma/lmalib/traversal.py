@@ -222,7 +222,7 @@ class OneToManyTraversal(object):
                 e_iter = (np.atleast_1d(p_group[eid]) for eid in last_entity_ids
                           if eid in p_group)
                 e_idx = list(itertools.chain.from_iterable(e_iter))
-                if type(e_idx[0]) == slice:
+                if len(e_idx) > 0 and type(e_idx[0]) == slice:
                     e_idx = np.array([e.start for e in e_idx])
                 if len(e_idx) == 0:
                     # xarray doesn't accept an empty array as a valid index
@@ -244,7 +244,7 @@ class OneToManyTraversal(object):
                 e_iter = (np.atleast_1d(e_group[eid]) for eid in entity_ids
                           if eid in e_group)
                 e_idx = list(itertools.chain.from_iterable(e_iter))
-                if type(e_idx[0]) == slice:
+                if len(e_idx) > 0 and type(e_idx[0]) == slice:
                     e_idx = np.array([e.start for e in e_idx])
                 last_entity_ids = entity_ids # == dataset[e_var].data
                 if len(e_idx) == 0:
