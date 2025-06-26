@@ -2,6 +2,24 @@ from collections import defaultdict
 import xarray as xr
 import numpy as np
 
+def generic_subset(d, dim, slices):
+    """ slices is a dictionary of variable names to slice objects or boolean masks,
+        assumed to all apply to the same dimension dim within xarray dataset d"""
+    mask = None
+    for k, sl in slices.items():
+        # print(k, sl)
+        if hasattr(sl, 'start'):
+            this_mask = (d[k] >= sl.start) & (d[k] <= sl.stop)
+        else:
+            this_mask = sl
+        if mask is None:
+            mask = this_mask
+        else:
+            mask = mask & this_mask
+        # print(mask.sum())
+    return d[{dim:mask}]
+
+
 def get_1d_dims(d):
     """
     Find all dimensions in a dataset that are purely 1-dimensional,

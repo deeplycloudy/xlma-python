@@ -32,10 +32,10 @@ def get_time_distance(lat, lon, time, lat0, lon0, time0):
 
 
 def time_distance_plot_interactive(interactive_lma, ax):
-    lat = interactive_lma.this_lma_lat
-    lon = interactive_lma.this_lma_lon
-    alt = interactive_lma.this_lma_alt
-    time = interactive_lma.this_lma_time
+    lat  = np.asarray(interactive_lma.this_lma_lat)
+    lon  = np.asarray(interactive_lma.this_lma_lon)
+    alt  = np.asarray(interactive_lma.this_lma_alt)
+    time = np.asarray(interactive_lma.this_lma_time)
     first = np.nanargmin(time)
 
     distance_from_origin, time_from_origin = get_time_distance(lat, lon, time, 

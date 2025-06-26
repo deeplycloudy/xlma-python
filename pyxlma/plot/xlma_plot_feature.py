@@ -192,12 +192,16 @@ def plot_2d_network_points(bk_plot, netw_data, actual_height=None, fake_ic_heigh
     return art_out
 
 
-def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True, poly_kwargs={}, vlines_kwargs={}):
+def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True, poly_kwargs={}, vlines_kwargs={}, points_kwargs={}):
     """
     Plot event-level data from a glmtools dataset on a pyxlma.plot.xlma_base_plot.BlankPlot object.
     Events that occupy the same pixel have their energies summed and plotted on the planview axis, event locations
     are plotted on the lat/lon/time axes with an altitude specified as fake_alt.
     Requires glmtools to be installed.
+    
+    The group latitudes and longitudes are plotted as in the LCFA data file, without parallax correction.
+    
+    Does not do any subsetting of the GLM dataset; see pyxlma.plot.interactive.get_glm_plot_subset for that functionality.
 
     Parameters
     ----------
@@ -209,7 +213,8 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
         the axes relative coordinates to plot the vertical lines for GLM events in the cross section, default [0, 1],
         the full height of the axes.
     should_parallax_correct : bool
-        whether to correct the GLM event locations for parallax effect. See https://doi.org/10.1029/2019JD030874 for more information.
+        whether to correct the GLM event locations for parallax effect. 
+        See https://doi.org/10.1029/2019JD030874 for more information.
     poly_kwargs : dict
         dictionary of additional keyword arguments to be passed to matplotlib Polygon
     vlines_kwargs : dict
@@ -277,10 +282,18 @@ def plot_glm_events(glm, bk_plot, fake_alt=[0, 1], should_parallax_correct=True,
     pc = PatchCollection(patches, **poly_kwargs)
     pc.set_array(evrad.data)
     bk_plot.ax_plan.add_collection(pc)
-    th_handle = bk_plot.ax_th.vlines(glm.event_time_offset.data, fake_alt[0], fake_alt[1], transform=bk_plot.ax_th.get_xaxis_transform(), **vlines_kwargs)
-    lon_handle = bk_plot.ax_lon.vlines(glm.event_lon, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lon.get_xaxis_transform(), **vlines_kwargs)
-    lat_handle = bk_plot.ax_lat.hlines(glm.event_lat, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lat.get_yaxis_transform(), **vlines_kwargs)
-    art_out = [pc, th_handle, lon_handle, lat_handle]
+    th_handle = bk_plot.ax_th.vlines(glm.group_time_offset.data, fake_alt[0], fake_alt[1], 
+        transform=bk_plot.ax_th.get_xaxis_transform(), **vlines_kwargs)
+    vert_proj_point_alt = np.ones_like(glm.group_lon) * (fake_alt[0]+fake_alt[1])/2.0
+    lon_handle = bk_plot.ax_lon.plot(glm.group_lon, vert_proj_point_alt, 
+        transform=bk_plot.ax_lon.get_xaxis_transform(), **points_kwargs)
+    lat_handle = bk_plot.ax_lat.plot(vert_proj_point_alt, glm.group_lat,
+        transform=bk_plot.ax_lat.get_yaxis_transform(), **points_kwargs)
+    plan_handle = bk_plot.ax_plan.plot(glm.group_lon, glm.group_lat, **points_kwargs)
+
+    # lon_handle = bk_plot.ax_lon.vlines(glm.event_lon, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lon.get_xaxis_transform(), **vlines_kwargs)
+    # lat_handle = bk_plot.ax_lat.hlines(glm.event_lat, fake_alt[0], fake_alt[1], transform=bk_plot.ax_lat.get_yaxis_transform(), **vlines_kwargs)
+    art_out = [pc, th_handle] + lon_handle + lat_handle + plan_handle
     return art_out
 
 
