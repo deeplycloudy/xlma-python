@@ -392,6 +392,9 @@ def get_glm_plot_subset(interactive_plot, glm):
     
     glm_bounds = {'group_time_offset':slice(start,end),}
     glm_sub = generic_subset(glm.dataset, glm.dataset.group_id.dims[0], glm_bounds)
+    if glm_sub.group_id.data.shape[0] < 1:
+        # No data, so just empty everything
+        return glm.dataset[{'number_of_events':[], 'number_of_groups':[], 'number_of_flashes':[]}]
     glm_sub = glm.reduce_to_entities('group_id', glm_sub.group_id.data)
 
     # Recreate the GLMDataset from the reduced dataset.
