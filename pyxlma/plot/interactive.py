@@ -409,3 +409,54 @@ def get_glm_plot_subset(interactive_plot, glm):
     glm_sub = glm.reduce_to_entities('group_id', glm_sub.event_parent_group_id.data)
                   
     return glm_sub
+
+
+def get_2d_network_subset(interactive_plot, netw_data, adjust_alt=True, pad_factor=0.01):
+    """
+    Subset 2D network point data to the current view of an interactive plot.
+    
+    Parameters
+    ----------
+    interactive_plot : `pyxlma.plot.interactive.InteractiveLMAPlot`
+        The XLMA plot from which the bounds of the current view are extracted
+    netw_data : `pandas.DataFrame`
+        2d network point location data of the type expected by 
+        `pyxlma.plot.xlma_plot_feature.plot_2d_network_points`
+    adjust_alt : bool
+        if True, adjust the `icheight` column of netw_sub to fit within the plot range
+        if False, reject any points whose `icheight` is outside the plot range.
+    pad_factor : float
+        if adjust_alt==True, factor of the plot's total altitude height range to use
+        as padding on the minimum and maximum altitude.
+
+    Returns
+    -------
+    netw_sub : `pandas.DataFrame`
+        subset netw_data to match the current plot
+    """
+    xlim = interactive_plot.bounds['x']
+    ylim = interactive_plot.bounds['y']    
+    zlim = [z*1000.0 for z in interactive_plot.bounds['z']]
+    tlim = interactive_plot.bounds['t']
+    start, end = np.datetime64(tlim[0]), np.datetime64(tlim[1])
+    z_span = zlim[1] - zlim[0]
+    
+    in_lat = (netw_data['latitude'] >= ylim[0]) & (netw_data['latitude'] < ylim[1])
+    in_lon = (netw_data['longitude'] >= xlim[0]) & (netw_data['longitude'] < xlim[1])
+    in_time = (netw_data['datetime'] >= start) & (netw_data['datetime'] < end)
+    
+    # Must copy, or it gives a view of the original dataframe/
+    netw_sub = netw_data[in_lat & in_lon & in_time].copy()
+
+    # if altitude greater or less than top or bottom of plot, move to top or bottom.
+    if adjust_alt:
+        min_z = zlim[0]+pad_factor*z_span
+        max_z = zlim[1]-pad_factor*z_span
+        below = (netw_sub['icheight'] < min_z)
+        above = (netw_sub['icheight'] >= max_z)       
+        netw_sub['icheight'] = np.where(below, min_z, netw_sub['icheight'])
+        netw_sub['icheight'] = np.where(above, max_z, netw_sub['icheight'])
+    else:
+        in_alt = (netw_sub['icheight'] >= zlim[0]) & (netw_sub['icheight'] < zlim[1])
+        netw_sub = netw_sub[in_alt]
+    return netw_sub
