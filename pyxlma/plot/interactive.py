@@ -4,9 +4,11 @@ import xarray as xr
 import pandas as pd
 
 from matplotlib.dates import num2date
-
-from pyxlma.plot.xlma_plot_feature import color_by_time, plot_points, setup_hist, plot_3d_grid, subset
+from pyxlma.plot.xlma_plot_feature import color_by_time, plot_points, setup_hist, plot_3d_grid, subset, plot_2d_network_points
 from pyxlma.plot.xlma_base_plot import subplot_labels, inset_view, BlankPlot
+from pyxlma.plot.xlma_super_base_plot import SuperBlankPlot
+from pyxlma.plot.xlma_super_plot_feature import plot_super_points, plot_super_2d_network_points
+
 
 from ipywidgets import Output
 output = Output()
@@ -126,11 +128,12 @@ def event_space_time_limits(ds):
 class InteractiveLMAPlot(object):
 
     def __init__(self, ds, chimax=1.0, stationmin=6,
-            plot_cmap='plasma', point_size=5, clon=-101.5, clat=33.5,
-            xlim=None, ylim=None, zlim=None, tlim=None):
+            plot_cmap='plasma', point_size=10, clon=-101.5, clat=33.5,
+            xlim=None, ylim=None, zlim=None, tlim=None, network_data=None, radar_data=None, points=None):
         """ lma_plot is as returned by pyxlma's BlankPlot
 
             xlim, ylim, zlim, and tlim are initial limits to use with the dataset;
+            network_data is the data for network_data points to use alongside the dataset;
             otherwise, the limits are taken from the limits of the data in ds.
         """
         xlim_ds, ylim_ds, zlim_ds, tlim_ds = event_space_time_limits(ds)
@@ -139,8 +142,11 @@ class InteractiveLMAPlot(object):
         if ylim is None: ylim = ylim_ds
         if zlim is None: zlim = zlim_ds
         if tlim is None: tlim = tlim_ds
+        #print(tlim)
+        #if network_data is None: print(network_data)
+        #else: print(network_data)
         # tlim = pd.to_datetime('2022-06-04T22:15'), pd.to_datetime('2022-06-04T22:20')
-
+        
         self.stationmin = stationmin
         self.chimax = chimax
         self.plot_cmap = plot_cmap
@@ -149,13 +155,16 @@ class InteractiveLMAPlot(object):
         self.clat = clat
         self.widget_output = output
 
-
         # list of all artists in the plot that change when the view subset changes
         self.data_artists = []
 
         self._accumulator = Accumulator(self.limits_changed)
         self._managers = {}
         self.ds = ds
+        self.network_data = network_data
+        self.radar_data = radar_data
+        self.points = points
+        #print(network_data)
 
         self.bounds = {
             'x': xlim,
@@ -166,7 +175,8 @@ class InteractiveLMAPlot(object):
 
         self.lma_plot = None
         self.inset_ax = None
-        self.make_plot()
+        if isinstance(network_data, pd.core.frame.DataFrame): self.make_super_plot()
+        else: self.make_plot()
         self.make_plot_interactive()
 
     @output.capture()
@@ -234,10 +244,156 @@ class InteractiveLMAPlot(object):
         self.bounds['t'] = tlim
 
         self.make_plot()
+        self.make_super_plot()
         self.make_plot_interactive()
 
 
     @output.capture()
+    
+    def make_super_plot(self):
+        # pull out relevant plot params from object attributes
+        ds = self.ds
+        network_data = self.network_data
+        if isinstance(network_data, type(None)):
+                return
+        radar_data = self.radar_data
+        points = self.points
+        #print('super plot stuff')
+        #print(network_data)
+        plot_s = self.point_size
+        plot_cmap = self.plot_cmap
+        xlim, ylim = self.bounds['x'], self.bounds['y']
+        zlim, tlim = self.bounds['z'], self.bounds['t']
+        xchi = self.chimax
+        stationmin = self.stationmin
+
+        # Regularize time limits to the right datetime type.
+        tlim_sub = pd.to_datetime(tlim[0]), pd.to_datetime(tlim[1])
+
+        alt_data = ds.event_altitude.values/1000.0
+        lon_data = ds.event_longitude.values
+        lat_data = ds.event_latitude.values
+        time_data = pd.Series(ds.event_time) # because time comparisons
+        chi_data = ds.event_chi2.values
+        station_data = ds.event_stations.values.astype(int)
+        
+        network_data_alt = np.array((network_data['ic height'].apply(pd.to_numeric).astype(float)/1000).tolist())
+
+        network_data_lon = np.array(network_data['longitude'].tolist())
+        network_data_lat = np.array(network_data['latitude'].tolist())
+        network_data_time = (network_data['datetime'])
+
+        network_data_type = (network_data['type'])
+        network_data_current = (network_data['peak_current_kA'])
+        network_data_chi = np.array([xchi] * len(network_data_alt))
+
+        network_data_station = np.array([stationmin] * len(network_data_alt))
+
+        network_data_lon_set, network_data_lat_set, network_data_alt_set, network_data_time_set, network_data_selection = subset(
+                   network_data_lon, network_data_lat, network_data_alt, network_data_time, network_data_chi, network_data_station,
+                   xlim, ylim, zlim, tlim_sub, xchi, stationmin)
+        
+        network_data_type_set = []
+        for l in network_data_time_set.index:
+            #print(l)
+            #print(entln_type.iloc[l])
+            network_data_type_set.append(network_data_type.iloc[l])
+        #print('hi', entln_type_set)
+        
+        network_data_current_set = []
+        for j in network_data_time_set.index:
+                network_data_current_set.append(network_data_current.iloc[j])
+                
+        dict = {'longitude': network_data_lon_set, 'latitude': network_data_lat_set, 'height': network_data_alt_set, 'peak_current_kA': network_data_current_set, 'datetime': network_data_time_set, 'type': network_data_type_set}
+        network_data_adjusted = pd.DataFrame(dict)
+        #print(network_data_adjusted)
+
+        tstring = 'LMA {}-{}'.format(tlim_sub[0].strftime('%H%M'),
+                                     tlim_sub[1].strftime('%H%M UTC %d %B %Y '))
+
+        lon_set, lat_set, alt_set, time_set, selection = subset(
+                   lon_data, lat_data, alt_data, time_data, chi_data, station_data,
+                   xlim, ylim, zlim, tlim_sub, xchi, stationmin)
+
+        self.this_lma_lon = lon_set
+        self.this_lma_lat = lat_set
+        self.this_lma_alt = alt_set
+        self.this_lma_time = time_set
+        self.this_lma_sel = selection
+        
+
+        #if self.lma_plot is not None:
+        #    fig = self.lma_plot.fig
+        #else:
+        #    fig = None
+        if self.lma_plot is None:
+            self.lma_plot = SuperBlankPlot(pd.to_datetime(tlim_sub[0]), bkgmap=True, #fig=fig,
+                      xlim=xlim, ylim=ylim, zlim=zlim, tlim=tlim, title=tstring, 
+                      radar_data=radar_data, points=points)
+            # Add some subplot labels
+            label_art = subplot_labels(self.lma_plot)
+        else:
+            # clear all the old plots of data
+            #print(self.data_artist)
+            for a in self.data_artists:
+                #print("removing", a)
+                if a in self.data_artists: 
+                    try:
+                        a.remove() 
+                    except ValueError:
+                        pass
+            # reset the list of data artists.
+            self.data_artists = []
+            self.lma_plot.ax_th.set_title(tstring)
+
+
+        # Add a view of where the subset is
+        # Not plotting this because removing the inset_ax created by this funcion does not
+        # clean up the callbacks created by GeoAxes._boundary, causing "None" to be
+        # passed as the axes to _trigger_patch_reclip"
+
+        # Add a range ring
+        ring_art = self.lma_plot.ax_plan.tissot(rad_km=40.0, lons=self.clon, lats=self.clat, n_samples=80,
+                          facecolor='none',edgecolor='k')
+        self.data_artists.append(ring_art)
+        
+        # Add the station locations
+        stn_art = self.lma_plot.ax_plan.plot(ds['station_longitude'],
+                                       ds['station_latitude'], 'wD', mec='k', ms=5)
+        self.data_artists.extend(stn_art)   
+
+        # Plot the LMA data points
+        if len(lon_set)==0:
+            #print('ERROR')
+            no_src_art = self.lma_plot.ax_hist.text(0.02,1,'No Sources',fontsize=12)
+            self.data_artists.append(no_src_art)
+        else:
+            plot_vmin, plot_vmax, plot_c = color_by_time(time_set, tlim_sub)
+            #print('Correct')
+            src_art2 = (plot_super_2d_network_points(self.lma_plot, network_data_adjusted, color_by='polarity', 
+                                                  actual_height=network_data_adjusted['height']/1000, points = points))
+            
+            src_art = (plot_super_points(self.lma_plot, lon_set, lat_set, alt_set, time_set,
+                                       plot_cmap, plot_s, plot_vmin, plot_vmax, plot_c, radar_data = radar_data, points = points))
+
+            self.data_artists.extend(src_art)
+            self.data_artists.extend(src_art2)
+        
+
+        self.lma_plot.ax_plan.set_aspect('auto')
+
+        # Zoom all the axes to the same limits. Don't emit a callback event,
+        # so that we don't have an infinite loop.
+        self.lma_plot.ax_lon.axis(xlim+zlim, emit=False)
+        self.lma_plot.ax_lat.axis(zlim+ylim, emit=False)
+        self.lma_plot.ax_th.axis(tlim+zlim, emit=False)
+
+        self.lma_plot.ax_plan.set_xticks(self.lma_plot.ax_lon.get_xticks())
+        self.lma_plot.ax_plan.set_yticks(self.lma_plot.ax_lat.get_yticks())
+
+        self.lma_plot.ax_plan.axis(xlim+ylim, emit=False)
+
+
     def make_plot(self):
         # pull out relevant plot params from object attributes
         ds = self.ds
@@ -285,23 +441,15 @@ class InteractiveLMAPlot(object):
         else:
             # clear all the old plots of data
             for a in self.data_artists:
-                # print("removing", a)
-                a.remove()
+                #print("removing", a)
+                if a in self.data_artists: 
+                    try:
+                        a.remove()
+                    except ValueError:
+                        pass
             # reset the list of data artists.
             self.data_artists = []
             self.lma_plot.ax_th.set_title(tstring)
-
-
-        # Add a view of where the subset is
-        # Not plotting this because removing the inset_ax created by this funcion does not
-        # clean up the callbacks created by GeoAxes._boundary, causing "None" to be
-        # passed as the axes to _trigger_patch_reclip
-        # if self.inset_ax is not None:
-        #     print(self.inset_ax.callbacks)
-        #     self.inset_ax.remove()
-        # xdiv = ydiv = 0.1
-        # self.inset_ax = inset_view(self.lma_plot, lon_data, lat_data, xlim, ylim, xdiv, ydiv,
-        #           buffer=0.5, inset_size=0.15, plot_cmap = 'plasma', bkgmap = True)
 
         # Add a range ring
         ring_art = self.lma_plot.ax_plan.tissot(rad_km=40.0, lons=self.clon, lats=self.clat, n_samples=80,
@@ -331,29 +479,13 @@ class InteractiveLMAPlot(object):
         self.lma_plot.ax_lon.axis(xlim+zlim, emit=False)
         self.lma_plot.ax_lat.axis(zlim+ylim, emit=False)
         self.lma_plot.ax_th.axis(tlim+zlim, emit=False)
-        # print(self.lma_plot.ax_plan.get_position())
-        # print(self.lma_plot.ax_lat.get_position())
-        # print(self.lma_plot.ax_lon.get_position())
-
-        # Refresh the ticks from the non-Cartopy plot that knows how to
-        # generate ticks. If this goes after the ax_plan.axis() below,
-        # it causes the proportion of the Cartopy axes frame
-        # to change within the figure.
+        
         self.lma_plot.ax_plan.set_xticks(self.lma_plot.ax_lon.get_xticks())
         self.lma_plot.ax_plan.set_yticks(self.lma_plot.ax_lat.get_yticks())
 
         self.lma_plot.ax_plan.axis(xlim+ylim, emit=False)
 
 
-
-
-        # Refresh the ticks from the non-Cartopy plot that knows how to
-        # generate ticks.
-        # self.lma_plot.ax_plan.set_xticks(self.lma_plot.ax_lon.get_xticks())
-        # self.lma_plot.ax_plan.set_yticks(self.lma_plot.ax_lat.get_yticks())
-        # This line does runs the above two lines, and then a set_extent, and
-        # promptly crashes the iPy kernel.
-        # self.lma_plot.set_ax_plan_labels()
 
 
 
