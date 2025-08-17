@@ -49,7 +49,7 @@ def get_1d_datasets(d):
     returns
         a list of single-dimension datasets
     """
-    return [d1 for d1 in gen_1d_datasets(d, *args, **kwargs)]
+    return [d1 for d1 in gen_1d_datasets(d)]
 
 def get_scalar_vars(d):
     scalars = []
