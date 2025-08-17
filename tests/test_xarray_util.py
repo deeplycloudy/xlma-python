@@ -42,12 +42,3 @@ def test_concat_1d_dims_scalars():
     concatenated = concat_1d_dims(glm_datasets, stack_scalars='scalars')
     assert dict(concatenated.dims) == {'number_of_events': 29664, 'number_of_groups': 10420, 'number_of_flashes': 606, 'number_of_time_bounds': 6,
                                        'number_of_wavelength_bounds': 6, 'number_of_field_of_view_bounds': 6, 'scalars': 3}
-
-
-if __name__ == "__main__":
-    test_get_1d_dims()
-    test_gen_1d_datasets()
-    test_get_1d_datasets()
-    test_get_scalar_vars()
-    test_concat_1d_dims_no_scalars()
-    test_concat_1d_dims_scalars()
