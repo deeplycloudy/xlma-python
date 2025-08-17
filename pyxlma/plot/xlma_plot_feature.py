@@ -43,7 +43,10 @@ def subset(lon_data=None, lat_data=None, alt_data=None, time_data=None, chi_data
         if time_data is None:
             raise ValueError("Time data must be provided to filter by tlim")
         else:
-            selection &= ((time_data>tlim[0])&(time_data<tlim[1]))
+            nsToS = 1e9
+            time_array = np.array(time_data).astype('datetime64[ns]').astype(float)/nsToS
+            tlim_array = np.atleast_1d(tlim).astype('datetime64[ns]').astype(float)/nsToS
+            selection &= ((time_array>tlim_array[0])&(time_array<tlim_array[1]))
     if xchi is not None:
         if chi_data is None:
             raise ValueError("chi squared data must be provided to filter by xchi")
