@@ -17,6 +17,16 @@ def test_subset():
                                               '2023-12-24T00:57:07.814960674', '2023-12-24T00:57:07.826344209']).astype(np.datetime64).astype(float))
     assert np.sum(selection) == 10
 
+def test_subset_time_mismatch():
+    lma = xr.open_dataset('tests/truth/lma_netcdf/lma.nc')
+    time_subset, selection = subset(time_data=lma.event_time.data, tlim=(dt(2023, 12, 24, 0, 57, 0), dt(2023, 12, 24, 0, 57, 10)))
+    assert np.allclose(time_subset[0:10].astype(float), np.array(['2023-12-24T00:57:01.747284125', '2023-12-24T00:57:01.748099340',
+                                                            '2023-12-24T00:57:01.748382054', '2023-12-24T00:57:01.749366380',
+                                                            '2023-12-24T00:57:01.749571321', '2023-12-24T00:57:01.751596868',
+                                                            '2023-12-24T00:57:01.752419634', '2023-12-24T00:57:01.753047708',
+                                                            '2023-12-24T00:57:01.754500213', '2023-12-24T00:57:01.757822235']).astype(np.datetime64).astype(float))
+    assert np.sum(selection) == 2590
+
 def test_color_by_time_datetime_nolimit():
     some_datetimes = np.array([dt(2021, 4, 9, 1, 51, 0), dt(2021, 4, 9, 1, 52, 0), dt(2021, 4, 9, 1, 53, 0), dt(2021, 4, 9, 1, 54, 0), dt(2021, 4, 9, 1, 59, 0)])
     vmin, vmax, colors = color_by_time(some_datetimes)
