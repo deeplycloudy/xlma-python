@@ -6,26 +6,65 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 
-def subset(lon_data, lat_data, alt_data, time_data, chi_data,station_data,
-           xlim, ylim, zlim, tlim, xchi, stationmin):
+def subset(lon_data=None, lat_data=None, alt_data=None, time_data=None, chi_data=None, station_data=None,
+           xlim=None, ylim=None, zlim=None, tlim=None, xchi=None, stationmin=None):
     """
     Generate a subset of x,y,z,t of sources based on maximum
     reduced chi squared and given x,y,z,t bounds
 
     Returns: longitude, latitude, altitude, time and boolean arrays
     """
-    selection = ((alt_data>zlim[0])&(alt_data<zlim[1])&
-                 (lon_data>xlim[0])&(lon_data<xlim[1])&
-                 (lat_data>ylim[0])&(lat_data<ylim[1])&
-                 (time_data>tlim[0])&(time_data<tlim[1])&
-                 (chi_data<=xchi)&(station_data>=stationmin)
-                 )
+    data_shape = None
+    for data in [lon_data, lat_data, alt_data, time_data, chi_data, station_data]:
+        if data is not None:
+            if data_shape is None:
+                data_shape = data.shape
+            elif data_shape != data.shape:
+                raise ValueError("All input arrays must have the same shape.")
+    if data_shape is None:
+        raise ValueError("At least one input array must be provided.")
+    selection  = np.ones(data_shape, dtype=bool)
+    if xlim is not None:
+        if lon_data is None:
+            raise ValueError("Longitude data must be provided to filter by xlim")
+        else:
+            selection &= ((lon_data>xlim[0])&(lon_data<xlim[1]))
+    if ylim is not None:
+        if lat_data is None:
+            raise ValueError("Latitude data must be provided to filter by ylim")
+        else:
+            selection &= ((lat_data>ylim[0])&(lat_data<ylim[1]))
+    if zlim is not None:
+        if alt_data is None:
+            raise ValueError("Altitude data must be provided to filter by zlim")
+        else:
+            selection &= ((alt_data>zlim[0])&(alt_data<zlim[1]))
+    if tlim is not None:
+        if time_data is None:
+            raise ValueError("Time data must be provided to filter by tlim")
+        else:
+            selection &= ((time_data>tlim[0])&(time_data<tlim[1]))
+    if xchi is not None:
+        if chi_data is None:
+            raise ValueError("chi squared data must be provided to filter by xchi")
+        else:
+            selection &= (chi_data <= xchi)
+    if stationmin is not None:
+        if station_data is None:
+            raise ValueError("Station data must be provided to filter by stationmin")
+        else:
+            selection &= (station_data >= stationmin)
 
-    alt_data = alt_data[selection]
-    lon_data = lon_data[selection]
-    lat_data = lat_data[selection]
-    time_data = time_data[selection]
-    return lon_data, lat_data, alt_data, time_data, selection
+    things_to_return = []
+    if lon_data is not None:
+        things_to_return.append(lon_data[selection])
+    if lat_data is not None:
+        things_to_return.append(lat_data[selection])
+    if alt_data is not None:
+        things_to_return.append(alt_data[selection])
+    if time_data is not None:
+        things_to_return.append(time_data[selection])
+    return *things_to_return, selection
 
 
 def color_by_time(time_array, tlim=None):
